@@ -1,0 +1,98 @@
+:root {
+  --bg: #1a1614;
+  --surface: #2c2622;
+  --surface2: #3d352f;
+  --accent: #c9a227;
+  --accent-dim: #8b7519;
+  --text: #f0e6dc;
+  --text-muted: #9a8f82;
+  --green: #4a7c59;
+  --red: #a04545;
+  --border: #5c524a;
+  --font-display: 'Crimson Pro', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  margin: 0 0 0.5em;
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5em 1em;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: background 0.15s, transform 0.1s;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+button.primary {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+button.primary:hover:not(:disabled) {
+  background: #d4b02d;
+}
+
+button.secondary {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+button.secondary:hover:not(:disabled) {
+  background: #4a423b;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.35em;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--accent-dim);
+  color: var(--bg);
+}
