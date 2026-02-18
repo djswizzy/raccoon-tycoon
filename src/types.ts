@@ -57,7 +57,7 @@ export interface Player {
 
 export type Market = Record<Commodity, number>;
 
-export type GamePhase = 'setup' | 'playing' | 'auction' | 'gameover';
+export type GamePhase = 'setup' | 'playing' | 'auction' | 'discardDown' | 'gameover';
 
 export interface GameState {
   phase: GamePhase;

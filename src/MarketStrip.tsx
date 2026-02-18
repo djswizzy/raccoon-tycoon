@@ -1,15 +1,6 @@
 import type { Market } from './types'
-import { COMMODITY_NAMES } from './data/cards'
+import { COMMODITY_NAMES, COMMODITY_EMOJI } from './data/cards'
 import { COMMODITIES, COMMODITY_PRICE_MIN, COMMODITY_PRICE_MAX } from './gameLogic'
-
-const COMMODITY_EMOJI: Record<string, string> = {
-  wheat: '🌾',
-  wood: '🪵',
-  iron: '⚙️',
-  coal: '🪨',
-  goods: '📦',
-  luxury: '💎',
-}
 
 type Props = { market: Market }
 

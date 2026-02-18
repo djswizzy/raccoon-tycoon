@@ -31,6 +31,17 @@ export function createProductionDeck(): ProductionCard[] {
     [{ wheat: 1, goods: 2 }, ['wheat', 'goods']],
     [{ wood: 2, goods: 1 }, ['wood', 'goods']],
     [{ iron: 2, luxury: 1 }, ['iron', 'luxury']],
+    // 4–5 commodity cards (choose 3)
+    [{ wood: 3, iron: 1, wheat: 1 }, ['wood', 'iron']],
+    [{ wheat: 2, coal: 2, goods: 1 }, ['wheat', 'coal']],
+    [{ iron: 2, coal: 1, luxury: 1 }, ['iron', 'luxury']],
+    [{ goods: 2, luxury: 2, wheat: 1 }, ['goods', 'luxury']],
+    [{ coal: 2, wood: 2, iron: 1 }, ['coal', 'wood']],
+    [{ wheat: 2, wood: 1, goods: 1, luxury: 1 }, ['wheat', 'goods']],
+    [{ iron: 1, coal: 1, goods: 1, luxury: 1 }, ['iron', 'coal']],
+    [{ wood: 2, iron: 2, coal: 1 }, ['wood', 'iron']],
+    [{ wheat: 3, wood: 1, coal: 1 }, ['wheat']],
+    [{ luxury: 2, goods: 2, coal: 1 }, ['luxury', 'goods']],
   ];
   const deck: ProductionCard[] = [];
   let id = 0;
@@ -82,6 +93,15 @@ export const TOWNS: TownCard[] = [
 
 const COMMODITY_NAMES: Record<Commodity, string> = {
   wheat: 'Wheat', wood: 'Wood', iron: 'Iron', coal: 'Coal', goods: 'Goods', luxury: 'Luxury',
+};
+
+export const COMMODITY_EMOJI: Record<Commodity, string> = {
+  wheat: '🌾',
+  wood: '🪵',
+  iron: '⚙️',
+  coal: '🪨',
+  goods: '📦',
+  luxury: '💎',
 };
 
 export function createBuildingTiles(): BuildingTile[] {

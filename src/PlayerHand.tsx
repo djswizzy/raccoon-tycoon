@@ -1,48 +1,99 @@
 import type { ProductionCard, BuildingTile } from './types'
-import { COMMODITY_NAMES } from './data/cards'
-import { COMMODITIES } from './gameLogic'
+import { COMMODITY_NAMES, COMMODITY_EMOJI } from './data/cards'
+import { getProductionList } from './gameLogic'
 
 type Props = {
   hand: ProductionCard[]
   onProduce: (cardIndex: number) => void
+  onToggleProductionIndex: (cardIndex: number, index: number) => void
   disabled: boolean
   commodities: Partial<Record<string, number>>
   buildings: BuildingTile[]
   selectedCardIndex?: number | null
+  productionSelection: number[]
+  maxProduction: number
 }
 
-export function PlayerHand({ hand, onProduce, disabled, commodities: _commodities, buildings: _buildings, selectedCardIndex = null }: Props) {
+export function PlayerHand({
+  hand,
+  onProduce,
+  onToggleProductionIndex,
+  disabled,
+  commodities: _commodities,
+  buildings: _buildings,
+  selectedCardIndex = null,
+  productionSelection,
+  maxProduction,
+}: Props) {
   return (
     <div className="player-hand card">
-      <h3>Your hand (play one to produce)</h3>
+      <h3>Your hand — choose a card, then pick {maxProduction} from the bottom</h3>
       <div className="hand-cards">
-        {hand.map((card, i) => (
-          <button
-            key={card.id}
-            type="button"
-            className={`prod-card ${selectedCardIndex === i ? 'selected' : ''}`}
-            onClick={() => onProduce(i)}
-            disabled={disabled}
-          >
-            <div className="prod-icons">
-              {COMMODITIES.flatMap(c =>
-                Array(card.production[c] ?? 0).fill(c).map((co, j) => (
-                  <span key={`${co}-${j}`} className="icon" title={COMMODITY_NAMES[co as keyof typeof COMMODITY_NAMES]}>
-                    {COMMODITY_NAMES[co as keyof typeof COMMODITY_NAMES].slice(0, 1)}
-                  </span>
-                ))
-              )}
+        {hand.map((card, i) => {
+          const productionList = getProductionList(card)
+          const isSelected = selectedCardIndex === i
+          return (
+            <div
+              key={card.id}
+              className={`prod-card ${isSelected ? 'selected' : ''}`}
+            >
+              <button
+                type="button"
+                className="prod-card-top"
+                onClick={() => onProduce(i)}
+                disabled={disabled}
+              >
+                <span className="prod-card-label">Price ↑</span>
+                <div className="prod-card-emojis">
+                  {card.priceIncrease.map((c, idx) => (
+                    <span key={`price-${i}-${idx}`} className="prod-emoji" title={COMMODITY_NAMES[c]}>
+                      {COMMODITY_EMOJI[c]}
+                    </span>
+                  ))}
+                  {card.priceIncrease.length === 0 && (
+                    <span className="prod-emoji none">—</span>
+                  )}
+                </div>
+              </button>
+              <div className="prod-card-divider" />
+              <div className="prod-card-bottom">
+                <span className="prod-card-label">
+                  {productionList.length <= maxProduction ? 'Take all' : `Take ${maxProduction}`}
+                </span>
+                <div className="prod-card-emojis prod-slots">
+                  {productionList.map((co, slotIndex) => {
+                    const takeAll = productionList.length <= maxProduction
+                    const slotSelected = !takeAll && isSelected && productionSelection.includes(slotIndex)
+                    const canToggle = !takeAll && isSelected && !disabled && (
+                      slotSelected || productionSelection.length < maxProduction
+                    )
+                    return (
+                      <button
+                        key={`prod-${i}-${slotIndex}`}
+                        type="button"
+                        className={`prod-emoji slot ${slotSelected ? 'selected' : ''} ${takeAll ? 'take-all' : ''}`}
+                        title={COMMODITY_NAMES[co]}
+                        disabled={!canToggle}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          if (canToggle) onToggleProductionIndex(i, slotIndex)
+                        }}
+                      >
+                        {COMMODITY_EMOJI[co]}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
-            <div className="price-up">
-              ↑ {card.priceIncrease.map(c => COMMODITY_NAMES[c as keyof typeof COMMODITY_NAMES].slice(0, 1)).join(', ')}
-            </div>
-          </button>
-        ))}
+          )
+        })}
       </div>
       <style>{`
         .player-hand {
           flex: 1;
-          min-width: 280px;
+          min-width: 320px;
         }
         .player-hand h3 {
           font-size: 0.9rem;
@@ -51,40 +102,98 @@ export function PlayerHand({ hand, onProduce, disabled, commodities: _commoditie
         }
         .hand-cards {
           display: flex;
-          gap: 0.5rem;
+          gap: 0.75rem;
           flex-wrap: wrap;
         }
         .prod-card {
           background: var(--surface2);
           border: 1px solid var(--border);
-          border-radius: 8px;
-          padding: 0.6rem;
-          min-width: 80px;
-          text-align: center;
-        }
-        .prod-card:hover:not(:disabled) {
-          border-color: var(--accent);
-        }
-        .prod-icons {
+          border-radius: 10px;
+          padding: 0;
+          min-width: 120px;
+          width: 120px;
+          min-height: 160px;
           display: flex;
-          flex-wrap: wrap;
-          gap: 0.2rem;
-          justify-content: center;
-          margin-bottom: 0.25rem;
+          flex-direction: column;
+          align-items: stretch;
+          text-align: center;
+          overflow: hidden;
         }
-        .prod-icons .icon {
-          font-size: 0.75rem;
-          padding: 0.15rem 0.3rem;
-          background: var(--surface);
-          border-radius: 4px;
-        }
-        .price-up {
-          font-size: 0.75rem;
-          color: var(--text-muted);
+        .prod-card:hover {
+          border-color: var(--accent);
         }
         .prod-card.selected {
           border-color: var(--accent);
           box-shadow: 0 0 0 2px var(--accent-dim);
+        }
+        .prod-card-top, .prod-card-bottom {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 0.5rem;
+          min-height: 0;
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          font: inherit;
+          color: inherit;
+        }
+        .prod-card-top:disabled {
+          cursor: default;
+        }
+        .prod-card-top {
+          background: rgba(0,0,0,0.12);
+        }
+        .prod-card-divider {
+          height: 2px;
+          background: var(--border);
+        }
+        .prod-card-label {
+          font-size: 0.65rem;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          color: var(--text-muted);
+          margin-bottom: 0.35rem;
+        }
+        .prod-card-emojis {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.25rem;
+          justify-content: center;
+          align-items: center;
+        }
+        .prod-emoji {
+          font-size: 1.5rem;
+          line-height: 1;
+        }
+        .prod-emoji.slot {
+          padding: 0.15rem;
+          border-radius: 6px;
+          border: 2px solid transparent;
+          background: transparent;
+          cursor: pointer;
+          transition: border-color 0.15s, background 0.15s;
+        }
+        .prod-emoji.slot:hover:not(:disabled) {
+          background: rgba(201, 162, 39, 0.15);
+          border-color: var(--accent-dim);
+        }
+        .prod-emoji.slot.selected {
+          border-color: var(--accent);
+          background: rgba(201, 162, 39, 0.25);
+        }
+        .prod-emoji.slot:disabled {
+          cursor: default;
+        }
+        .prod-emoji.slot.take-all {
+          cursor: default;
+          pointer-events: none;
+        }
+        .prod-emoji.none {
+          font-size: 1rem;
+          color: var(--text-muted);
         }
       `}</style>
     </div>

@@ -129,22 +129,33 @@ function totalCommodities(commodities: Partial<Record<Commodity, number>>): numb
 export function canProduce(state: GameState, cardIndex: number): boolean {
   const p = state.players[state.currentPlayerIndex];
   const card = p.hand[cardIndex];
-  if (!card || state.phase !== 'playing') return false;
-  const maxProd = getMaxProduction(p);
-  const prodList = COMMODITIES.flatMap(c => Array(card.production[c] ?? 0).fill(c)).slice(0, maxProd);
-  const current = totalCommodities(p.commodities);
-  return current + prodList.length <= getMaxStorage(p);
+  return !!(card && state.phase === 'playing');
 }
 
-export function actionProduction(state: GameState, cardIndex: number): GameState {
+/** Flatten card production to an array (one entry per unit). */
+export function getProductionList(card: { production: Partial<Record<Commodity, number>> }): Commodity[] {
+  return COMMODITIES.flatMap(c => Array(card.production[c] ?? 0).fill(c));
+}
+
+export function actionProduction(state: GameState, cardIndex: number, commoditiesToTake?: Commodity[]): GameState {
   const s = { ...state, players: state.players.map(x => ({ ...x })) };
   const p = s.players[s.currentPlayerIndex];
   const card = p.hand[cardIndex];
   if (!card) return state;
 
   const maxProd = getMaxProduction(p);
-  const available: Commodity[] = COMMODITIES.flatMap(c => Array(card.production[c] ?? 0).fill(c));
-  const take = available.slice(0, maxProd);
+  const available: Commodity[] = getProductionList(card);
+  let take: Commodity[];
+  if (commoditiesToTake && commoditiesToTake.length === maxProd) {
+    for (const c of COMMODITIES) {
+      const onCard = card.production[c] ?? 0;
+      const requested = commoditiesToTake.filter(x => x === c).length;
+      if (requested > onCard) return state;
+    }
+    take = commoditiesToTake;
+  } else {
+    take = available.slice(0, maxProd);
+  }
 
   const bonusTile = p.buildings.find(b => b.commodityBonus != null);
   if (bonusTile?.commodityBonus) {
@@ -174,22 +185,33 @@ export function actionProduction(state: GameState, cardIndex: number): GameState
     p.hand.push(drawn);
   }
 
-  // Enforce storage
   const maxStorage = getMaxStorage(p);
-  let total = totalCommodities(p.commodities);
+  const total = totalCommodities(p.commodities);
   if (total > maxStorage) {
-    const excess = total - maxStorage;
-    for (let i = 0; i < excess; i++) {
-      for (const c of COMMODITIES) {
-        if ((p.commodities[c] ?? 0) > 0) {
-          p.commodities[c] = (p.commodities[c] ?? 0) - 1;
-          break;
-        }
-      }
-    }
+    s.phase = 'discardDown';
+    return s;
   }
-
   return nextTurn(s);
+}
+
+export function actionDiscard(state: GameState, commodity: Commodity): GameState {
+  if (state.phase !== 'discardDown') return state;
+  const s = { ...state, players: state.players.map(x => ({ ...x })) };
+  const p = s.players[s.currentPlayerIndex];
+  const have = p.commodities[commodity] ?? 0;
+  if (have <= 0) return state;
+  p.commodities[commodity] = have - 1;
+  const maxStorage = getMaxStorage(p);
+  const total = totalCommodities(p.commodities);
+  if (total <= maxStorage) {
+    s.phase = 'playing';
+    return nextTurn(s);
+  }
+  return s;
+}
+
+export function getTotalCommodities(commodities: Partial<Record<Commodity, number>>): number {
+  return totalCommodities(commodities);
 }
 
 export function actionSell(state: GameState, commodity: Commodity, quantity: number): GameState {

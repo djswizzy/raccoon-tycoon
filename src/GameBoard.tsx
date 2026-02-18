@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import type { GameState } from './types'
 import { COMMODITY_NAMES } from './data/cards'
-import { COMMODITIES, actionProduction, actionBuyTown, actionBuyBuilding, startAuction, placeBid, passAuction, actionSell } from './gameLogic'
+import { COMMODITIES, actionProduction, actionBuyTown, actionBuyBuilding, startAuction, placeBid, passAuction, actionSell, actionDiscard, getMaxProduction, getProductionList } from './gameLogic'
 import { MarketStrip } from './MarketStrip'
+import { DiscardDownPanel } from './DiscardDownPanel'
 import { RailroadOffer } from './RailroadOffer'
 import { TownCard } from './TownCard'
 import { BuildingOffer } from './BuildingOffer'
@@ -32,19 +33,45 @@ function samePending(a: PendingAction | null, b: PendingAction): boolean {
 export function GameBoard({ state, setState }: Props) {
   const [showSellPanel, setShowSellPanel] = useState(false)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
+  const [productionSelection, setProductionSelection] = useState<number[]>([])
   const current = state.players[state.currentPlayerIndex]
   const isAuction = state.phase === 'auction'
+  const maxProduction = getMaxProduction(current)
 
   function togglePending(next: PendingAction) {
-    setPendingAction(prev => samePending(prev, next) ? null : next)
+    setPendingAction(prev => {
+      const nextIsSame = samePending(prev, next)
+      if (next.type === 'production' && (!prev || prev.type !== 'production' || prev.cardIndex !== next.cardIndex)) {
+        setProductionSelection([])
+      }
+      return nextIsSame ? null : next
+    })
+  }
+
+  function toggleProductionIndex(cardIndex: number, index: number) {
+    if (pendingAction?.type !== 'production' || pendingAction.cardIndex !== cardIndex) return
+    setProductionSelection(prev => {
+      if (prev.includes(index)) return prev.filter(i => i !== index)
+      if (prev.length >= maxProduction) return prev
+      return [...prev, index]
+    })
   }
 
   function commitPending() {
     if (!pendingAction) return
     switch (pendingAction.type) {
-      case 'production':
-        setState(actionProduction(state, pendingAction.cardIndex))
+      case 'production': {
+        const card = current.hand[pendingAction.cardIndex]
+        if (card && productionSelection.length === maxProduction) {
+          const list = getProductionList(card)
+          const toTake = productionSelection.map(i => list[i])
+          setState(actionProduction(state, pendingAction.cardIndex, toTake))
+        } else if (card) {
+          setState(actionProduction(state, pendingAction.cardIndex))
+        }
+        setProductionSelection([])
         break
+      }
       case 'startAuction':
         setState(startAuction(state, pendingAction.railroadIndex))
         break
@@ -73,6 +100,18 @@ export function GameBoard({ state, setState }: Props) {
           state={state}
           pending={pendingAction}
           onCommit={commitPending}
+          commitDisabled={
+            pendingAction?.type === 'production'
+              ? (() => {
+                  const card = current.hand[pendingAction.cardIndex]
+                  if (!card) return true
+                  const listLen = getProductionList(card).length
+                  return listLen > maxProduction
+                    ? productionSelection.length !== maxProduction
+                    : false
+                })()
+              : false
+          }
         />
       )}
 
@@ -117,10 +156,13 @@ export function GameBoard({ state, setState }: Props) {
         <PlayerHand
           hand={current.hand}
           onProduce={(cardIndex) => togglePending({ type: 'production', cardIndex })}
+          onToggleProductionIndex={toggleProductionIndex}
           disabled={isAuction}
           commodities={current.commodities}
           buildings={current.buildings}
           selectedCardIndex={pendingAction?.type === 'production' ? pendingAction.cardIndex : null}
+          productionSelection={productionSelection}
+          maxProduction={maxProduction}
         />
         <div className="my-resources card">
           <h3>Your resources</h3>
@@ -165,6 +207,13 @@ export function GameBoard({ state, setState }: Props) {
           state={state}
           onBid={(amount) => setState(placeBid(state, amount))}
           onPass={() => setState(passAuction(state))}
+        />
+      )}
+
+      {state.phase === 'discardDown' && (
+        <DiscardDownPanel
+          state={state}
+          onDiscard={(commodity) => setState(actionDiscard(state, commodity))}
         />
       )}
 

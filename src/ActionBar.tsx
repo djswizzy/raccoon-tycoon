@@ -12,9 +12,10 @@ type Props = {
   state: GameState
   pending: PendingAction | null
   onCommit: () => void
+  commitDisabled?: boolean
 }
 
-export function ActionBar({ state, pending, onCommit }: Props) {
+export function ActionBar({ state, pending, onCommit, commitDisabled = false }: Props) {
   const current = state.players[state.currentPlayerIndex]
   let description = 'No action selected'
 
@@ -65,7 +66,7 @@ export function ActionBar({ state, pending, onCommit }: Props) {
         type="button"
         className="primary"
         onClick={onCommit}
-        disabled={!pending}
+        disabled={!pending || commitDisabled}
       >
         Commit
       </button>
