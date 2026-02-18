@@ -98,52 +98,69 @@ export function GameBoard({ state, setState }: Props) {
 
   return (
     <div className="game-board">
-      <div className="game-main">
-        <header className="game-header">
-          <h1>Raccoon Tycoon</h1>
-          <div className="current-turn">
-            <span className="label">Current turn</span>
-            <span className="player-name">{current.name}</span>
-          </div>
-        </header>
+      <header className="game-header">
+        <h1>Raccoon Tycoon</h1>
+        <div className="current-turn">
+          <span className="label">Current turn</span>
+          <span className="player-name">{current.name}</span>
+        </div>
+      </header>
 
-        <section className="market-section">
-        <MarketStrip market={state.market} />
-      </section>
+      <div className="game-body">
+        <div className="game-main">
+          <section className="market-section">
+            <MarketStrip market={state.market} />
+          </section>
 
       <section className="offer-row">
-        <RailroadOffer
-          railroads={state.railroadOffer}
-          onStartAuction={(idx) => togglePending({ type: 'startAuction', railroadIndex: idx })}
-          disabled={isAuction}
-          currentPlayerMoney={current.money}
-          selectedRailroadIndex={pendingAction?.type === 'startAuction' ? pendingAction.railroadIndex : null}
-        />
-        <div className="town-slot">
-          <h3>Town</h3>
-          {state.currentTown ? (
-            <TownCard
-              town={state.currentTown}
-              onBuySpecific={() => togglePending({ type: 'buyTown', useSpecific: true })}
-              onBuyAny={() => togglePending({ type: 'buyTown', useSpecific: false })}
-              player={current}
-              selectedBuySpecific={pendingAction?.type === 'buyTown' ? pendingAction.useSpecific : null}
-            />
-          ) : (
-            <div className="empty-slot">No town available</div>
-          )}
+        <div className="railroad-offer-with-deck">
+          <div className="deck-pile" title="Railroad deck">
+            <div className="deck-card-back" aria-hidden />
+            <span className="deck-count" aria-label={`${state.railroadDeck.length} railroads remaining`}>
+              {state.railroadDeck.length}
+            </span>
+          </div>
+          <RailroadOffer
+            railroads={state.railroadOffer}
+            onStartAuction={(idx) => togglePending({ type: 'startAuction', railroadIndex: idx })}
+            disabled={isAuction}
+            currentPlayerMoney={current.money}
+            selectedRailroadIndex={pendingAction?.type === 'startAuction' ? pendingAction.railroadIndex : null}
+          />
+        </div>
+        <div className="town-offer-with-deck">
+          <div className="deck-pile" title="Town deck">
+            <div className="deck-card-back" aria-hidden />
+            <span className="deck-count" aria-label={`${state.townDeck.length} towns remaining`}>
+              {state.townDeck.length}
+            </span>
+          </div>
+          <div className="town-slot">
+            <h3>Town</h3>
+            {state.currentTown ? (
+              <TownCard
+                town={state.currentTown}
+                onBuySpecific={() => togglePending({ type: 'buyTown', useSpecific: true })}
+                onBuyAny={() => togglePending({ type: 'buyTown', useSpecific: false })}
+                player={current}
+                selectedBuySpecific={pendingAction?.type === 'buyTown' ? pendingAction.useSpecific : null}
+              />
+            ) : (
+              <div className="empty-slot">No town available</div>
+            )}
+          </div>
         </div>
       </section>
 
-      <section className="buildings-section">
-        <BuildingOffer
-          buildings={state.buildingOffer}
-          onBuy={(idx) => togglePending({ type: 'buyBuilding', buildingIndex: idx })}
-          currentPlayerMoney={current.money}
-          selectedBuildingIndex={pendingAction?.type === 'buyBuilding' ? pendingAction.buildingIndex : null}
-        />
-      </section>
-
+      <div className="buildings-and-hand-row">
+        <section className="buildings-section">
+          <BuildingOffer
+            buildings={state.buildingOffer}
+            onBuy={(idx) => togglePending({ type: 'buyBuilding', buildingIndex: idx })}
+            currentPlayerMoney={current.money}
+            selectedBuildingIndex={pendingAction?.type === 'buyBuilding' ? pendingAction.buildingIndex : null}
+          />
+        </section>
         <section className="player-area">
           <PlayerHand
             hand={current.hand}
@@ -157,6 +174,7 @@ export function GameBoard({ state, setState }: Props) {
             maxProduction={maxProduction}
           />
         </section>
+      </div>
       </div>
 
       <aside className="game-sidebar card">
@@ -204,6 +222,7 @@ export function GameBoard({ state, setState }: Props) {
           </button>
         )}
       </aside>
+      </div>
 
       {showSellPanel && (
         <SellPanel
@@ -235,12 +254,20 @@ export function GameBoard({ state, setState }: Props) {
       <style>{`
         .game-board {
           display: flex;
+          flex-direction: column;
           min-height: 100vh;
           padding: 1rem;
           padding-bottom: 2rem;
-          gap: 1rem;
+          gap: 0;
           max-width: 1400px;
           margin: 0 auto;
+        }
+        .game-body {
+          display: flex;
+          flex: 1;
+          gap: 1rem;
+          align-items: stretch;
+          min-height: 0;
         }
         .game-main {
           flex: 1;
@@ -353,6 +380,42 @@ export function GameBoard({ state, setState }: Props) {
           flex-wrap: wrap;
           margin-bottom: 1rem;
         }
+        .railroad-offer-with-deck,
+        .town-offer-with-deck {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.75rem;
+        }
+        .deck-pile {
+          position: relative;
+          flex-shrink: 0;
+        }
+        .deck-card-back {
+          width: 100px;
+          height: 130px;
+          background: linear-gradient(145deg, #2a3f5f 0%, #1a2840 100%);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          box-shadow: 2px 2px 6px rgba(0,0,0,0.3);
+        }
+        .deck-count {
+          position: absolute;
+          top: -8px;
+          left: 50%;
+          transform: translateX(-50%);
+          min-width: 1.5rem;
+          height: 1.5rem;
+          padding: 0 0.35rem;
+          background: var(--accent);
+          color: var(--bg);
+          font-size: 0.8rem;
+          font-weight: 700;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
         .town-slot {
           flex: 1;
           min-width: 200px;
@@ -370,11 +433,19 @@ export function GameBoard({ state, setState }: Props) {
           text-align: center;
           color: var(--text-muted);
         }
-        .buildings-section {
+        .buildings-and-hand-row {
+          display: flex;
+          gap: 1rem;
+          align-items: flex-start;
           margin-bottom: 1rem;
+          min-width: 0;
+        }
+        .buildings-section {
+          flex-shrink: 0;
         }
         .player-area {
-          margin-bottom: 1.5rem;
+          flex: 1;
+          min-width: 0;
         }
       `}</style>
     </div>

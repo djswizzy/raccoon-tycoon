@@ -53,6 +53,7 @@ export function RailroadOffer({ railroads, onStartAuction, disabled, currentPlay
           display: flex;
           flex-direction: column;
           gap: 0.25rem;
+          transition: transform 0.2s ease, border-color 0.15s, box-shadow 0.15s;
         }
         .railroad-card button.railroad-card:hover:not(:disabled) {
           border-color: var(--accent);
@@ -73,9 +74,11 @@ export function RailroadOffer({ railroads, onStartAuction, disabled, currentPlay
           background: var(--surface2);
           border-style: dashed;
         }
-        .railroad-card.selected {
+        .railroad-card.selected,
+        .railroad-card.selected:hover {
           border-color: var(--accent);
           box-shadow: 0 0 0 2px var(--accent-dim);
+          transform: translateY(-8px);
         }
       `}</style>
     </div>

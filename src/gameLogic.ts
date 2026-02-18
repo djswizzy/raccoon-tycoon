@@ -351,13 +351,11 @@ export function actionBuyTown(state: GameState, useSpecific: boolean): GameState
 }
 
 function nextTurn(s: GameState): GameState {
+  const railroadsGone = s.railroadDeck.length === 0 && s.railroadOffer.length === 0;
+  const townsGone = s.townDeck.length === 0 && s.currentTown === null;
+  if (railroadsGone || townsGone) return endGame(s);
   const next = (s.currentPlayerIndex + 1) % s.numPlayers;
   s.currentPlayerIndex = next;
-  if (next === s.roundStartIndex) {
-    const railroadsGone = s.railroadDeck.length === 0 && s.railroadOffer.length <= 1;
-    const townsGone = s.townDeck.length === 0 && s.currentTown === null;
-    if (railroadsGone || townsGone) return endGame(s);
-  }
   return s;
 }
 

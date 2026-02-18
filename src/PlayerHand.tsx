@@ -114,13 +114,16 @@ export function PlayerHand({
           align-items: stretch;
           text-align: center;
           overflow: hidden;
+          transition: transform 0.2s ease, border-color 0.15s, box-shadow 0.15s;
         }
         .prod-card:hover {
           border-color: var(--accent);
         }
-        .prod-card.selected {
+        .prod-card.selected,
+        .prod-card.selected:hover {
           border-color: var(--accent);
           box-shadow: 0 0 0 2px var(--accent-dim);
+          transform: translateY(-8px);
         }
         .prod-card-top, .prod-card-bottom {
           flex: 1;
