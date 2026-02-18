@@ -1,14 +1,14 @@
 :root {
-  --bg: #1a1614;
-  --surface: #2c2622;
-  --surface2: #3d352f;
-  --accent: #c9a227;
-  --accent-dim: #8b7519;
+  --bg: #1f1412;
+  --surface: #3d2520;
+  --surface2: #4a2e28;
+  --accent: #b85450;
+  --accent-dim: #8b403c;
   --text: #f0e6dc;
-  --text-muted: #9a8f82;
+  --text-muted: #a89088;
   --green: #4a7c59;
-  --red: #a04545;
-  --border: #5c524a;
+  --red: #c45c58;
+  --border: #5c403c;
   --font-display: 'Crimson Pro', Georgia, serif;
   --font-body: 'DM Sans', system-ui, sans-serif;
 }
@@ -63,7 +63,7 @@ button.primary {
 }
 
 button.primary:hover:not(:disabled) {
-  background: #d4b02d;
+  background: #c86460;
 }
 
 button.secondary {
@@ -73,7 +73,7 @@ button.secondary {
 }
 
 button.secondary:hover:not(:disabled) {
-  background: #4a423b;
+  background: #5a3832;
 }
 
 .card {

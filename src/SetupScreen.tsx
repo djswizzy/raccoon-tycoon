@@ -65,7 +65,7 @@ export function SetupScreen({ onStart }: Props) {
           align-items: center;
           justify-content: center;
           padding: 2rem;
-          background: linear-gradient(160deg, #1a1614 0%, #2c2622 50%, #1a1614 100%);
+          background: linear-gradient(160deg, #1f1412 0%, #3d2520 50%, #1f1412 100%);
         }
         .setup-inner {
           width: 100%;

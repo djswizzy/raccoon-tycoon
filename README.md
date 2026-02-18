@@ -28,3 +28,12 @@ Open [http://localhost:5173](http://localhost:5173).
 - React 18 + TypeScript
 - Vite
 - No backend; single-device / pass-and-play
+
+## Online multiplayer (Vercel)
+
+To add online multiplayer and deploy on Vercel, see **[docs/MULTIPLAYER_VERCEL.md](docs/MULTIPLAYER_VERCEL.md)**. It covers:
+
+- Using Vercel + a database (Vercel Postgres, Supabase, or KV) for game state
+- Adding `/api` serverless routes for create game, join, get state, and actions
+- Frontend changes: create/join flows, sending actions, polling (or Supabase Realtime)
+- A starter API skeleton lives in `/api` (in-memory store; replace with a real DB for production)

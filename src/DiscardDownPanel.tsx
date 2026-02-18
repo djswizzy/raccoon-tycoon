@@ -80,7 +80,7 @@ export function DiscardDownPanel({ state, onDiscard }: Props) {
         }
         .discard-chip:hover {
           border-color: var(--accent);
-          background: rgba(201, 162, 39, 0.15);
+          background: rgba(184, 84, 80, 0.15);
         }
         .discard-emoji {
           font-size: 1.25rem;

@@ -34,7 +34,9 @@ export function PlayerPanels({ state }: Props) {
             className={`panel card ${i === state.currentPlayerIndex ? 'current' : ''}`}
           >
             <div className="panel-name">{p.name}</div>
-            <div className="panel-money">${p.money}</div>
+            <div className="panel-money">
+              {i === state.currentPlayerIndex ? `$${p.money}` : '—'}
+            </div>
             <div className="panel-assets">
               <span title={rrBreakdown.map(r => `${r.name} ×${r.count} = ${r.vp} VP`).join(', ')}>
                 {p.railroads.length} RR ({totalRrVp} VP)

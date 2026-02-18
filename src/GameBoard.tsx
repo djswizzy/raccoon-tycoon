@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { GameState } from './types'
-import { COMMODITY_NAMES } from './data/cards'
+import { COMMODITY_NAMES, COMMODITY_EMOJI } from './data/cards'
 import { COMMODITIES, actionProduction, actionBuyTown, actionBuyBuilding, startAuction, placeBid, passAuction, actionSell, actionDiscard, getMaxProduction, getProductionList } from './gameLogic'
 import { MarketStrip } from './MarketStrip'
 import { DiscardDownPanel } from './DiscardDownPanel'
@@ -8,10 +8,9 @@ import { RailroadOffer } from './RailroadOffer'
 import { TownCard } from './TownCard'
 import { BuildingOffer } from './BuildingOffer'
 import { PlayerHand } from './PlayerHand'
-import { PlayerPanels } from './PlayerPanels'
 import { AuctionPanel } from './AuctionPanel'
 import { SellPanel } from './SellPanel'
-import { ActionBar, type PendingAction } from './ActionBar'
+import type { PendingAction } from './ActionBar'
 
 type Props = {
   state: GameState
@@ -85,37 +84,30 @@ export function GameBoard({ state, setState }: Props) {
     setPendingAction(null)
   }
 
+  const commitDisabled =
+    pendingAction?.type === 'production'
+      ? (() => {
+          const card = current.hand[pendingAction?.cardIndex ?? -1]
+          if (!card) return true
+          const listLen = getProductionList(card).length
+          return listLen > maxProduction
+            ? productionSelection.length !== maxProduction
+            : false
+        })()
+      : false
+
   return (
     <div className="game-board">
-      <header className="game-header">
-        <h1>Raccoon Tycoon</h1>
-        <div className="current-turn">
-          <span className="label">Current turn</span>
-          <span className="player-name">{current.name}</span>
-        </div>
-      </header>
+      <div className="game-main">
+        <header className="game-header">
+          <h1>Raccoon Tycoon</h1>
+          <div className="current-turn">
+            <span className="label">Current turn</span>
+            <span className="player-name">{current.name}</span>
+          </div>
+        </header>
 
-      {!isAuction && (
-        <ActionBar
-          state={state}
-          pending={pendingAction}
-          onCommit={commitPending}
-          commitDisabled={
-            pendingAction?.type === 'production'
-              ? (() => {
-                  const card = current.hand[pendingAction.cardIndex]
-                  if (!card) return true
-                  const listLen = getProductionList(card).length
-                  return listLen > maxProduction
-                    ? productionSelection.length !== maxProduction
-                    : false
-                })()
-              : false
-          }
-        />
-      )}
-
-      <section className="market-section">
+        <section className="market-section">
         <MarketStrip market={state.market} />
       </section>
 
@@ -152,41 +144,66 @@ export function GameBoard({ state, setState }: Props) {
         />
       </section>
 
-      <section className="player-area">
-        <PlayerHand
-          hand={current.hand}
-          onProduce={(cardIndex) => togglePending({ type: 'production', cardIndex })}
-          onToggleProductionIndex={toggleProductionIndex}
-          disabled={isAuction}
-          commodities={current.commodities}
-          buildings={current.buildings}
-          selectedCardIndex={pendingAction?.type === 'production' ? pendingAction.cardIndex : null}
-          productionSelection={productionSelection}
-          maxProduction={maxProduction}
-        />
-        <div className="my-resources card">
-          <h3>Your resources</h3>
-          <div className="money">${current.money}</div>
-          <div className="commodities-list">
-            {COMMODITIES.map(c => {
-              const n = current.commodities[c] ?? 0
-              if (n === 0) return null
-              return (
-                <span key={c} className="commodity-chip">
-                  {COMMODITY_NAMES[c]}: {n}
-                </span>
-              )
-            })}
-          </div>
+        <section className="player-area">
+          <PlayerHand
+            hand={current.hand}
+            onProduce={(cardIndex) => togglePending({ type: 'production', cardIndex })}
+            onToggleProductionIndex={toggleProductionIndex}
+            disabled={isAuction}
+            commodities={current.commodities}
+            buildings={current.buildings}
+            selectedCardIndex={pendingAction?.type === 'production' ? pendingAction.cardIndex : null}
+            productionSelection={productionSelection}
+            maxProduction={maxProduction}
+          />
+        </section>
+      </div>
+
+      <aside className="game-sidebar card">
+        <h3>Your resources</h3>
+        <div className="sidebar-money">${current.money}</div>
+        <div className="commodities-list">
+          {COMMODITIES.map(c => {
+            const n = current.commodities[c] ?? 0
+            return (
+              <span key={c} className="commodity-chip" title={COMMODITY_NAMES[c]}>
+                <span className="commodity-emoji">{COMMODITY_EMOJI[c]}</span>
+                <span className="commodity-count">{n}</span>
+              </span>
+            )
+          })}
+        </div>
+        {current.buildings.length > 0 && (
+          <>
+            <h3 className="sidebar-buildings-title">Your buildings</h3>
+            <ul className="sidebar-buildings">
+              {current.buildings.map(b => (
+                <li key={b.id} className="sidebar-building" title={b.description}>
+                  <span className="sidebar-building-name">{b.name}</span>
+                  <span className="sidebar-building-desc">{b.description}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => setShowSellPanel(true)}
+        >
+          Sell commodities
+        </button>
+        {!isAuction && (
           <button
             type="button"
-            className="secondary"
-            onClick={() => setShowSellPanel(true)}
+            className="primary sidebar-commit"
+            onClick={commitPending}
+            disabled={!pendingAction || commitDisabled}
           >
-            Sell commodities
+            Commit
           </button>
-        </div>
-      </section>
+        )}
+      </aside>
 
       {showSellPanel && (
         <SellPanel
@@ -199,8 +216,6 @@ export function GameBoard({ state, setState }: Props) {
           onClose={() => setShowSellPanel(false)}
         />
       )}
-
-      <PlayerPanels state={state} />
 
       {isAuction && state.auctionRailroad && (
         <AuctionPanel
@@ -219,11 +234,87 @@ export function GameBoard({ state, setState }: Props) {
 
       <style>{`
         .game-board {
+          display: flex;
           min-height: 100vh;
           padding: 1rem;
           padding-bottom: 2rem;
-          max-width: 1200px;
+          gap: 1rem;
+          max-width: 1400px;
           margin: 0 auto;
+        }
+        .game-main {
+          flex: 1;
+          min-width: 0;
+        }
+        .game-sidebar {
+          width: 220px;
+          flex-shrink: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: stretch;
+          gap: 0.75rem;
+        }
+        .game-sidebar h3 {
+          font-size: 0.9rem;
+          color: var(--text-muted);
+          margin-bottom: 0;
+        }
+        .sidebar-money {
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: var(--accent);
+        }
+        .game-sidebar .commodities-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+        .game-sidebar .commodity-chip {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          background: var(--surface2);
+          padding: 0.25rem 0.5rem;
+          border-radius: 4px;
+          font-size: 0.85rem;
+        }
+        .game-sidebar .commodity-emoji {
+          margin-right: 0.5rem;
+        }
+        .game-sidebar .commodity-count {
+          font-weight: 600;
+        }
+        .game-sidebar .sidebar-buildings-title {
+          font-size: 0.9rem;
+          color: var(--text-muted);
+          margin: 0.25rem 0 0 0;
+        }
+        .game-sidebar .sidebar-buildings {
+          list-style: none;
+          margin: 0;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 0.35rem;
+        }
+        .game-sidebar .sidebar-building {
+          background: var(--surface2);
+          padding: 0.35rem 0.5rem;
+          border-radius: 4px;
+          font-size: 0.8rem;
+        }
+        .game-sidebar .sidebar-building-name {
+          font-weight: 600;
+          display: block;
+        }
+        .game-sidebar .sidebar-building-desc {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+        }
+        .sidebar-commit {
+          margin-top: auto;
+          width: 100%;
+          padding: 0.65rem;
         }
         .game-header {
           display: flex;
@@ -283,31 +374,7 @@ export function GameBoard({ state, setState }: Props) {
           margin-bottom: 1rem;
         }
         .player-area {
-          display: flex;
-          gap: 1rem;
-          flex-wrap: wrap;
           margin-bottom: 1.5rem;
-        }
-        .player-area .my-resources {
-          min-width: 200px;
-        }
-        .my-resources .money {
-          font-size: 1.5rem;
-          font-weight: 700;
-          color: var(--accent);
-          margin-bottom: 0.5rem;
-        }
-        .commodities-list {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.35rem;
-          margin-bottom: 0.75rem;
-        }
-        .commodity-chip {
-          background: var(--surface2);
-          padding: 0.25rem 0.5rem;
-          border-radius: 4px;
-          font-size: 0.85rem;
         }
       `}</style>
     </div>

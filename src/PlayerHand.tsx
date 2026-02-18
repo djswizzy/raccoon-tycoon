@@ -43,7 +43,6 @@ export function PlayerHand({
                 onClick={() => onProduce(i)}
                 disabled={disabled}
               >
-                <span className="prod-card-label">Price ↑</span>
                 <div className="prod-card-emojis">
                   {card.priceIncrease.map((c, idx) => (
                     <span key={`price-${i}-${idx}`} className="prod-emoji" title={COMMODITY_NAMES[c]}>
@@ -57,9 +56,6 @@ export function PlayerHand({
               </button>
               <div className="prod-card-divider" />
               <div className="prod-card-bottom">
-                <span className="prod-card-label">
-                  {productionList.length <= maxProduction ? 'Take all' : `Take ${maxProduction}`}
-                </span>
                 <div className="prod-card-emojis prod-slots">
                   {productionList.map((co, slotIndex) => {
                     const takeAll = productionList.length <= maxProduction
@@ -144,18 +140,14 @@ export function PlayerHand({
           cursor: default;
         }
         .prod-card-top {
-          background: rgba(0,0,0,0.12);
+          background: #2c4a6e;
         }
         .prod-card-divider {
           height: 2px;
           background: var(--border);
         }
-        .prod-card-label {
-          font-size: 0.65rem;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-          color: var(--text-muted);
-          margin-bottom: 0.35rem;
+        .prod-card-bottom {
+          background: #6e2c2c;
         }
         .prod-card-emojis {
           display: flex;
@@ -177,12 +169,12 @@ export function PlayerHand({
           transition: border-color 0.15s, background 0.15s;
         }
         .prod-emoji.slot:hover:not(:disabled) {
-          background: rgba(201, 162, 39, 0.15);
+          background: rgba(184, 84, 80, 0.15);
           border-color: var(--accent-dim);
         }
         .prod-emoji.slot.selected {
           border-color: var(--accent);
-          background: rgba(201, 162, 39, 0.25);
+          background: rgba(184, 84, 80, 0.25);
         }
         .prod-emoji.slot:disabled {
           cursor: default;
