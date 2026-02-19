@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { GameState } from './types'
-import { COMMODITY_NAMES } from './data/cards'
 
 export interface LogEntry {
   id: string

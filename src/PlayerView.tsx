@@ -1,4 +1,4 @@
-import type { Player, GameState } from './types'
+import type { Player } from './types'
 import { COMMODITY_NAMES, COMMODITY_EMOJI } from './data/cards'
 import { COMMODITIES } from './gameLogic'
 
