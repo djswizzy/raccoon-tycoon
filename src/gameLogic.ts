@@ -415,3 +415,40 @@ export function getWinner(state: GameState): number {
 }
 
 export { COMMODITIES };
+
+/** Action types for online play - server applies these. */
+export type GameAction =
+  | { type: 'production'; cardIndex: number; commoditiesToTake?: Commodity[] }
+  | { type: 'sell'; commodity: Commodity; quantity: number }
+  | { type: 'discard'; commodity: Commodity }
+  | { type: 'buyBuilding'; buildingIndex: number }
+  | { type: 'buyTown'; useSpecific: boolean }
+  | { type: 'startAuction'; railroadIndex: number }
+  | { type: 'placeBid'; amount: number }
+  | { type: 'passAuction' }
+  | { type: 'endTurn' }
+
+export function applyGameAction(state: GameState, action: GameAction): GameState {
+  switch (action.type) {
+    case 'production':
+      return actionProduction(state, action.cardIndex, action.commoditiesToTake)
+    case 'sell':
+      return actionSell(state, action.commodity, action.quantity)
+    case 'discard':
+      return actionDiscard(state, action.commodity)
+    case 'buyBuilding':
+      return actionBuyBuilding(state, action.buildingIndex)
+    case 'buyTown':
+      return actionBuyTown(state, action.useSpecific)
+    case 'startAuction':
+      return startAuction(state, action.railroadIndex)
+    case 'placeBid':
+      return placeBid(state, action.amount)
+    case 'passAuction':
+      return passAuction(state)
+    case 'endTurn':
+      return actionEndTurn(state)
+    default:
+      return state
+  }
+}

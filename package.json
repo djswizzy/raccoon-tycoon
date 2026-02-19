@@ -1,18 +1,28 @@
 {
-  "name": "raccoon-tycoon",
+  "name": "marsupial-monopoly",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "tsx server/index.ts",
+    "dev:all": "concurrently \"npm run server\" \"npm run dev\""
   },
   "dependencies": {
+    "concurrently": "^9.2.1",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vercel/node": "^3.0.0",

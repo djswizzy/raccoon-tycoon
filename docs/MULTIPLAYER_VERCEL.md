@@ -1,6 +1,6 @@
 # Online Multiplayer on Vercel
 
-This guide outlines how to make Raccoon Tycoon work for online multiplayer using **Vercel** for hosting and serverless APIs, plus a **database** for game state.
+This guide outlines how to make Marsupial Monopoly work for online multiplayer using **Vercel** for hosting and serverless APIs, plus a **database** for game state.
 
 ## Why this approach
 
@@ -68,7 +68,7 @@ Vercel will run serverless functions for paths under `/api`. You can keep your a
 ### Folder layout
 
 ```
-raccoon_tycoon/
+marsupial_monopoly/
   api/
     games/
       index.ts    → POST create game
@@ -125,7 +125,7 @@ You’ll do the same for `actionSell`, `actionBuyBuilding`, `startAuction`, `pla
 1. **Routing / game id**
    - Use the URL for the game id: e.g. `/game/:gameId` (React Router) or `?game=xyz` so joining and reconnects are just a link.
 2. **Create game**
-   - Call `POST /api/games` with `{ numPlayers, playerName }` (or similar). Response: `{ gameId, playerToken }`. Save `playerToken` in `localStorage` under a key like `raccoon_player_${gameId}`. Redirect to `/game/:gameId`.
+   - Call `POST /api/games` with `{ numPlayers, playerName }` (or similar). Response: `{ gameId, playerToken }`. Save `playerToken` in `localStorage` under a key like `marsupial_player_${gameId}`. Redirect to `/game/:gameId`.
 3. **Join game**
    - On load of `/game/:gameId`, if there’s no `playerToken` in localStorage, show “Join as” form; on submit call `POST /api/games/[id]/join` with `{ name }`, get back `{ playerToken }`, store it, then fetch state.
 4. **Load state**

@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { GameState } from './types'
+import type { GameAction } from './gameLogic'
 import { COMMODITY_NAMES, COMMODITY_EMOJI } from './data/cards'
 import { COMMODITIES, actionProduction, actionBuyTown, actionBuyBuilding, startAuction, placeBid, passAuction, actionSell, actionDiscard, actionEndTurn, cloneGameState, getMaxProduction, getProductionList } from './gameLogic'
 import { MarketStrip } from './MarketStrip'
@@ -10,11 +11,15 @@ import { BuildingOffer } from './BuildingOffer'
 import { PlayerHand } from './PlayerHand'
 import { AuctionPanel } from './AuctionPanel'
 import { SellPanel } from './SellPanel'
+import { GameLog, type LogEntry } from './GameLog'
+import { PlayerPanel } from './PlayerPanel'
 import type { PendingAction } from './ActionBar'
 
 type Props = {
   state: GameState
   setState: (s: GameState) => void
+  dispatch?: (action: GameAction, applyFirst?: GameAction) => void
+  playerIndex?: number
 }
 
 function samePending(a: PendingAction | null, b: PendingAction): boolean {
@@ -29,19 +34,108 @@ function samePending(a: PendingAction | null, b: PendingAction): boolean {
   }
 }
 
-export function GameBoard({ state, setState }: Props) {
+function formatActionMessage(action: GameAction, state: GameState, prevState?: GameState): string {
+  const useState = prevState || state
+  switch (action.type) {
+    case 'production': {
+      const player = useState.players[useState.currentPlayerIndex]
+      const card = player?.hand[action.cardIndex]
+      if (!card) return 'Played production card'
+      const commodities = action.commoditiesToTake || []
+      const prodList = commodities.length > 0 
+        ? commodities.map(c => COMMODITY_NAMES[c]).join(', ')
+        : 'commodities'
+      const priceList = card.priceIncrease.length > 0
+        ? card.priceIncrease.map(c => COMMODITY_NAMES[c]).join(', ')
+        : '—'
+      return `Played production card: took ${prodList}, raised ${priceList} by $1`
+    }
+    case 'sell':
+      return `Sold ${action.quantity} ${COMMODITY_NAMES[action.commodity]}`
+    case 'discard':
+      return `Discarded ${COMMODITY_NAMES[action.commodity]}`
+    case 'buyBuilding': {
+      const building = useState.buildingOffer[action.buildingIndex]
+      return building ? `Bought ${building.name} for $${building.cost}` : 'Bought building'
+    }
+    case 'buyTown': {
+      const town = useState.currentTown
+      if (!town) return 'Bought town'
+      return `Bought ${town.name} (${action.useSpecific ? 'specific commodities' : 'any commodities'})`
+    }
+    case 'startAuction': {
+      const railroad = useState.railroadOffer[action.railroadIndex]
+      return railroad ? `Started auction for ${railroad.name}` : 'Started auction'
+    }
+    case 'placeBid':
+      return `Bid $${action.amount}`
+    case 'passAuction':
+      return 'Passed on auction'
+    case 'endTurn':
+      return 'Ended turn'
+    default:
+      return 'Performed action'
+  }
+}
+
+export function GameBoard({ state, setState, dispatch, playerIndex }: Props) {
   const [showSellPanel, setShowSellPanel] = useState(false)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [productionSelection, setProductionSelection] = useState<number[]>([])
   const [stateBeforeAction, setStateBeforeAction] = useState<GameState | null>(null)
   const [stateBeforeAuction, setStateBeforeAuction] = useState<GameState | null>(null)
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([])
+  const [turnActions, setTurnActions] = useState<Array<{ action: GameAction; playerIdx: number }>>([])
+  const prevStateRef = useRef<GameState>(state)
+  const isOnline = !!dispatch && playerIndex !== undefined
+  const me = isOnline ? state.players[playerIndex] : state.players[state.currentPlayerIndex]
   const current = state.players[state.currentPlayerIndex]
+  const isMyTurn = !isOnline || state.currentPlayerIndex === playerIndex
   const isAuction = state.phase === 'auction'
+
+  // Reset log when game starts
+  useEffect(() => {
+    if (state.phase === 'playing' && prevStateRef.current.phase !== 'playing') {
+      setLogEntries([])
+      setTurnActions([])
+    }
+    prevStateRef.current = state
+  }, [state.phase])
+
+  // Clear turn actions when turn changes
+  useEffect(() => {
+    if (prevStateRef.current.currentPlayerIndex !== state.currentPlayerIndex && prevStateRef.current.currentPlayerIndex !== undefined) {
+      setTurnActions([])
+    }
+    prevStateRef.current = state
+  }, [state.currentPlayerIndex])
+
+  function addTurnAction(action: GameAction, playerIdx: number) {
+    setTurnActions(prev => [...prev, { action, playerIdx }])
+  }
+
+  function logTurnActions() {
+    if (turnActions.length === 0) return
+    
+    const playerIdx = turnActions[0].playerIdx
+    const entries: LogEntry[] = turnActions.map(({ action }, idx) => {
+      const message = formatActionMessage(action, state, prevStateRef.current)
+      return {
+        id: `${Date.now()}-${idx}-${Math.random()}`,
+        playerIndex: playerIdx,
+        message,
+        timestamp: Date.now() + idx, // Slight offset to maintain order
+      }
+    })
+    
+    setLogEntries(prev => [...prev, ...entries])
+    setTurnActions([])
+  }
 
   useEffect(() => {
     if (state.phase !== 'auction') setStateBeforeAuction(null)
   }, [state.phase])
-  const maxProduction = getMaxProduction(current)
+  const maxProduction = getMaxProduction(me)
 
   function togglePending(next: PendingAction) {
     setPendingAction(prev => {
@@ -74,46 +168,99 @@ export function GameBoard({ state, setState }: Props) {
   }
 
   function confirmStartAuction(railroadIndex: number) {
-    setStateBeforeAuction(cloneGameState(state))
-    setState(startAuction(state, railroadIndex))
+    const action: GameAction = { type: 'startAuction', railroadIndex }
+    if (dispatch) {
+      addTurnAction(action, state.currentPlayerIndex)
+      dispatch(action)
+    } else {
+      setStateBeforeAuction(cloneGameState(state))
+      addTurnAction(action, state.currentPlayerIndex)
+      const nextState = startAuction(state, railroadIndex)
+      prevStateRef.current = state
+      setState(nextState)
+    }
     setPendingAction(null)
   }
 
   function closeAuction() {
-    if (stateBeforeAuction) {
+    if (!dispatch && stateBeforeAuction) {
       setState(stateBeforeAuction)
       setStateBeforeAuction(null)
     }
   }
 
   function confirmBuyBuilding(buildingIndex: number) {
-    setStateBeforeAction(cloneGameState(state))
-    setState(actionBuyBuilding(state, buildingIndex))
+    const action: GameAction = { type: 'buyBuilding', buildingIndex }
+    if (dispatch) {
+      addTurnAction(action, state.currentPlayerIndex)
+      dispatch(action)
+    } else {
+      setStateBeforeAction(cloneGameState(state))
+      addTurnAction(action, state.currentPlayerIndex)
+      const nextState = actionBuyBuilding(state, buildingIndex)
+      prevStateRef.current = state
+      setState(nextState)
+    }
     setPendingAction(null)
   }
 
   function playProduction(cardIndex: number) {
-    const card = current.hand[cardIndex]
+    const card = me.hand[cardIndex]
     if (!card) return
-    setStateBeforeAction(cloneGameState(state))
-    const nextState =
+    const commoditiesToTake =
       productionSelection.length === maxProduction
-        ? actionProduction(state, cardIndex, productionSelection.map(i => getProductionList(card)[i]))
-        : actionProduction(state, cardIndex)
-    setState(nextState)
+        ? productionSelection.map(i => getProductionList(card)[i])
+        : undefined
+    const action: GameAction = { type: 'production', cardIndex, commoditiesToTake }
+    if (dispatch) {
+      addTurnAction(action, state.currentPlayerIndex)
+      dispatch(action)
+    } else {
+      setStateBeforeAction(cloneGameState(state))
+      addTurnAction(action, state.currentPlayerIndex)
+      const nextState =
+        productionSelection.length === maxProduction
+          ? actionProduction(state, cardIndex, productionSelection.map(i => getProductionList(card)[i]))
+          : actionProduction(state, cardIndex)
+      prevStateRef.current = state
+      setState(nextState)
+    }
     setPendingAction(null)
     setProductionSelection([])
   }
 
   function endTurn() {
-    if (pendingAction && pendingAction.type !== 'production' && pendingAction.type !== 'buyBuilding' && pendingAction.type !== 'startAuction') {
-      setStateBeforeAction(cloneGameState(state))
-      setState(applyPendingAction(state))
+    if (dispatch) {
+      if (pendingAction?.type === 'buyTown') {
+        const buyAction: GameAction = { type: 'buyTown', useSpecific: pendingAction.useSpecific }
+        addTurnAction(buyAction, state.currentPlayerIndex)
+        dispatch({ type: 'endTurn' }, buyAction)
+      } else {
+        addTurnAction({ type: 'endTurn' }, state.currentPlayerIndex)
+        dispatch({ type: 'endTurn' })
+      }
+      logTurnActions()
       setPendingAction(null)
       setProductionSelection([])
       return
     }
-    setState(actionEndTurn(state))
+    if (pendingAction && pendingAction.type !== 'production' && pendingAction.type !== 'buyBuilding' && pendingAction.type !== 'startAuction') {
+      const buyAction: GameAction = { type: 'buyTown', useSpecific: pendingAction.useSpecific }
+      setStateBeforeAction(cloneGameState(state))
+      addTurnAction(buyAction, state.currentPlayerIndex)
+      const nextState = applyPendingAction(state)
+      prevStateRef.current = state
+      setState(nextState)
+      logTurnActions()
+      setPendingAction(null)
+      setProductionSelection([])
+      return
+    }
+    addTurnAction({ type: 'endTurn' }, state.currentPlayerIndex)
+    logTurnActions()
+    const nextState = actionEndTurn(state)
+    prevStateRef.current = state
+    setState(nextState)
     setStateBeforeAction(null)
     setPendingAction(null)
     setProductionSelection([])
@@ -129,7 +276,7 @@ export function GameBoard({ state, setState }: Props) {
   const canPlaySelectedCard =
     pendingAction?.type === 'production'
       ? (() => {
-          const card = current.hand[pendingAction?.cardIndex ?? -1]
+          const card = me.hand[pendingAction?.cardIndex ?? -1]
           if (!card) return false
           const listLen = getProductionList(card).length
           return listLen > maxProduction
@@ -143,10 +290,10 @@ export function GameBoard({ state, setState }: Props) {
   return (
     <div className="game-board">
       <header className="game-header">
-        <h1>Raccoon Tycoon</h1>
+        <h1>Marsupial Monopoly</h1>
         <div className="current-turn">
-          <span className="label">Current turn</span>
-          <span className="player-name">{current.name}</span>
+          <span className="label">{isOnline ? (isMyTurn ? 'Your turn' : "Opponent's turn") : 'Current turn'}</span>
+          <span className="player-name">{current.name}{isOnline && isMyTurn ? ' (you)' : ''}</span>
         </div>
       </header>
 
@@ -172,7 +319,7 @@ export function GameBoard({ state, setState }: Props) {
                       railroads={state.railroadOffer}
                       onSelect={(idx) => togglePending({ type: 'startAuction', railroadIndex: idx })}
                       onConfirmStartAuction={confirmStartAuction}
-                      disabled={isAuction || actionTakenThisTurn}
+                      disabled={!isMyTurn || isAuction || actionTakenThisTurn}
                       currentPlayerMoney={current.money}
                       selectedRailroadIndex={pendingAction?.type === 'startAuction' ? pendingAction.railroadIndex : null}
                       hideTitle
@@ -196,7 +343,7 @@ export function GameBoard({ state, setState }: Props) {
                           onBuyAny={() => togglePending({ type: 'buyTown', useSpecific: false })}
                           player={current}
                           selectedBuySpecific={pendingAction?.type === 'buyTown' ? pendingAction.useSpecific : null}
-                          actionsDisabled={actionTakenThisTurn}
+                          actionsDisabled={!isMyTurn || actionTakenThisTurn}
                         />
                       ) : (
                         <div className="empty-slot">No town available</div>
@@ -212,20 +359,20 @@ export function GameBoard({ state, setState }: Props) {
                   onConfirmBuy={confirmBuyBuilding}
                   currentPlayerMoney={current.money}
                   selectedBuildingIndex={pendingAction?.type === 'buyBuilding' ? pendingAction.buildingIndex : null}
-                  selectionDisabled={actionTakenThisTurn}
+                  selectionDisabled={!isMyTurn || actionTakenThisTurn}
                 />
               </section>
             </div>
             <section className="player-area">
               <PlayerHand
-                hand={current.hand}
+                hand={me.hand}
                 onProduce={(cardIndex) => togglePending({ type: 'production', cardIndex })}
                 onPlayCard={playProduction}
                 onToggleProductionIndex={toggleProductionIndex}
-                disabled={isAuction || actionTakenThisTurn}
+                disabled={!isMyTurn || isAuction || actionTakenThisTurn}
                 canPlaySelected={canPlaySelectedCard}
-                commodities={current.commodities}
-                buildings={current.buildings}
+                commodities={me.commodities}
+                buildings={me.buildings}
                 selectedCardIndex={pendingAction?.type === 'production' ? pendingAction.cardIndex : null}
                 productionSelection={productionSelection}
                 maxProduction={maxProduction}
@@ -236,10 +383,10 @@ export function GameBoard({ state, setState }: Props) {
 
       <aside className="game-sidebar card">
         <h3>Your resources</h3>
-        <div className="sidebar-money">${current.money}</div>
+        <div className="sidebar-money">${me.money}</div>
         <div className="commodities-list">
           {COMMODITIES.map(c => {
-            const n = current.commodities[c] ?? 0
+            const n = me.commodities[c] ?? 0
             return (
               <span key={c} className="commodity-chip" title={COMMODITY_NAMES[c]}>
                 <span className="commodity-emoji">{COMMODITY_EMOJI[c]}</span>
@@ -248,11 +395,11 @@ export function GameBoard({ state, setState }: Props) {
             )
           })}
         </div>
-        {current.railroads.length > 0 && (
+        {me.railroads.length > 0 && (
           <>
             <h3 className="sidebar-section-title">Your railroads</h3>
             <ul className="sidebar-list">
-              {current.railroads.map(r => (
+              {me.railroads.map(r => (
                 <li key={r.id} className="sidebar-item">
                   <span className="sidebar-item-name">{r.name}</span>
                   <span className="sidebar-item-meta">{r.vp} VP</span>
@@ -261,11 +408,11 @@ export function GameBoard({ state, setState }: Props) {
             </ul>
           </>
         )}
-        {current.towns.length > 0 && (
+        {me.towns.length > 0 && (
           <>
             <h3 className="sidebar-section-title">Your towns</h3>
             <ul className="sidebar-list">
-              {current.towns.map(t => (
+              {me.towns.map(t => (
                 <li key={t.id} className="sidebar-item">
                   <span className="sidebar-item-name">{t.name}</span>
                   <span className="sidebar-item-meta">{t.vp} VP</span>
@@ -274,11 +421,11 @@ export function GameBoard({ state, setState }: Props) {
             </ul>
           </>
         )}
-        {current.buildings.length > 0 && (
+        {me.buildings.length > 0 && (
           <>
             <h3 className="sidebar-section-title">Your buildings</h3>
             <ul className="sidebar-buildings">
-              {current.buildings.map(b => (
+              {me.buildings.map(b => (
                 <li key={b.id} className="sidebar-building" title={b.description}>
                   <span className="sidebar-building-name">{b.name}</span>
                   <span className="sidebar-building-desc">{b.description}</span>
@@ -291,10 +438,11 @@ export function GameBoard({ state, setState }: Props) {
           type="button"
           className="secondary"
           onClick={() => setShowSellPanel(true)}
+          disabled={!isMyTurn || actionTakenThisTurn}
         >
           Sell commodities
         </button>
-        {stateBeforeAction != null && (
+        {!dispatch && stateBeforeAction != null && (
           <button
             type="button"
             className="secondary undo-button"
@@ -308,20 +456,31 @@ export function GameBoard({ state, setState }: Props) {
             type="button"
             className="primary sidebar-commit"
             onClick={endTurn}
-            disabled={!actionTakenThisTurn}
+            disabled={!isMyTurn || !actionTakenThisTurn}
           >
             End turn
           </button>
         )}
       </aside>
+      <GameLog state={state} entries={logEntries} />
+      <PlayerPanel state={state} />
       </div>
 
       {showSellPanel && (
         <SellPanel
-          commodities={current.commodities}
+          commodities={me.commodities}
           market={state.market}
           onSell={(commodity, qty) => {
-            setState(actionSell(state, commodity, qty))
+            const action: GameAction = { type: 'sell', commodity, quantity: qty }
+            if (dispatch) {
+              addTurnAction(action, state.currentPlayerIndex)
+              dispatch(action)
+            } else {
+              addTurnAction(action, state.currentPlayerIndex)
+              const nextState = actionSell(state, commodity, qty)
+              prevStateRef.current = state
+              setState(nextState)
+            }
             setShowSellPanel(false)
           }}
           onClose={() => setShowSellPanel(false)}
@@ -331,18 +490,54 @@ export function GameBoard({ state, setState }: Props) {
       {isAuction && state.auctionRailroad && (
         <AuctionPanel
           state={state}
-          onBid={(amount) => setState(placeBid(state, amount))}
-          onPass={() => setState(passAuction(state))}
-          onClose={closeAuction}
+          onBid={(amount) => {
+            const action: GameAction = { type: 'placeBid', amount }
+            if (dispatch) {
+              addTurnAction(action, state.currentPlayerIndex)
+              dispatch(action)
+            } else {
+              addTurnAction(action, state.currentPlayerIndex)
+              const nextState = placeBid(state, amount)
+              prevStateRef.current = state
+              setState(nextState)
+            }
+          }}
+          onPass={() => {
+            const action: GameAction = { type: 'passAuction' }
+            if (dispatch) {
+              addTurnAction(action, state.currentPlayerIndex)
+              dispatch(action)
+            } else {
+              addTurnAction(action, state.currentPlayerIndex)
+              const nextState = passAuction(state)
+              prevStateRef.current = state
+              setState(nextState)
+            }
+          }}
+          onClose={dispatch ? undefined : closeAuction}
+          canAct={isMyTurn}
         />
       )}
 
-      {state.phase === 'discardDown' && (
+      {state.phase === 'discardDown' && isMyTurn && (
         <DiscardDownPanel
           state={state}
-          onDiscard={(commodity) => setState(actionDiscard(state, commodity))}
+          onDiscard={(commodity) => {
+            const action: GameAction = { type: 'discard', commodity }
+            if (dispatch) {
+              addTurnAction(action, state.currentPlayerIndex)
+              dispatch(action)
+            } else {
+              addTurnAction(action, state.currentPlayerIndex)
+              const nextState = actionDiscard(state, commodity)
+              prevStateRef.current = state
+              setState(nextState)
+            }
+          }}
         />
       )}
+
+      <PlayerPanel state={state} />
 
       <style>{`
         .game-board {
@@ -354,6 +549,7 @@ export function GameBoard({ state, setState }: Props) {
           gap: 0;
           max-width: 1400px;
           margin: 0 auto;
+          overflow-x: visible;
         }
         .game-body {
           display: flex;

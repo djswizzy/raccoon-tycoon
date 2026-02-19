@@ -26,7 +26,7 @@ export function SetupScreen({ onStart }: Props) {
   return (
     <div className="setup">
       <div className="setup-inner">
-        <h1>Raccoon Tycoon</h1>
+        <h1>Marsupial Monopoly</h1>
         <p className="tagline">Build railroads, towns & goods in Astoria</p>
         <form onSubmit={handleSubmit}>
           <div className="field">

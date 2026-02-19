@@ -68,6 +68,12 @@ export function TownCard({ town, player, onBuySpecific, onBuyAny, selectedBuySpe
           display: flex;
           flex-direction: column;
           gap: 0.25rem;
+          transition: transform 0.2s ease, border-color 0.15s, box-shadow 0.15s;
+        }
+        .town-card:hover {
+          transform: translateY(-8px);
+          border-color: var(--accent);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 2px var(--accent-dim);
         }
         .town-name {
           font-weight: 600;

@@ -58,6 +58,11 @@ export function BuildingOffer({ buildings, onSelect, onConfirmBuy, currentPlayer
           align-items: center;
           justify-content: center;
         }
+        .building-tile:not(.selected):hover:not(:disabled) {
+          transform: translateY(-8px);
+          border-color: var(--accent);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 2px var(--accent-dim);
+        }
         .building-tile .b-content {
           display: flex;
           flex-direction: column;

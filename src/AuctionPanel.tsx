@@ -5,10 +5,11 @@ type Props = {
   state: GameState
   onBid: (amount: number) => void
   onPass: () => void
-  onClose: () => void
+  onClose?: () => void
+  canAct?: boolean
 }
 
-export function AuctionPanel({ state, onBid, onPass, onClose }: Props) {
+export function AuctionPanel({ state, onBid, onPass, onClose, canAct = true }: Props) {
   const [input, setInput] = useState('')
   const rr = state.auctionRailroad!
   const current = state.players[state.currentPlayerIndex]
@@ -29,14 +30,14 @@ export function AuctionPanel({ state, onBid, onPass, onClose }: Props) {
       <div className="auction-panel card">
         <div className="auction-panel-header">
           <h2>Auction: {rr.name}</h2>
-          <button type="button" className="auction-close" onClick={onClose} title="Close">×</button>
+          {onClose && <button type="button" className="auction-close" onClick={onClose} title="Close">×</button>}
         </div>
         <p>Min bid ${rr.minBid} · {rr.vp} VP</p>
         <p className="current-high">
           Current high: ${Math.max(...state.auctionBids)} by{' '}
           {state.players[state.auctionBids.indexOf(Math.max(...state.auctionBids))].name}
         </p>
-        {!passed ? (
+        {!passed && canAct ? (
           <>
             <div className="bid-row">
               <input
@@ -61,6 +62,8 @@ export function AuctionPanel({ state, onBid, onPass, onClose }: Props) {
             </div>
             <p className="your-money">Your money: ${current.money}</p>
           </>
+        ) : !passed && !canAct ? (
+          <p>Waiting for {current.name} to bid or pass.</p>
         ) : (
           <p>You passed. Waiting for others.</p>
         )}

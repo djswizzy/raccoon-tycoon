@@ -1,6 +1,6 @@
-# Raccoon Tycoon
+# Marsupial Monopoly
 
-A web implementation of the board game **Raccoon Tycoon** (Forbidden Games / Glenn Drover). Build railroads, towns, and goods to become the most prosperous critter in Astoria.
+A web implementation of a board game in the spirit of railroad and commodity games. Build railroads, towns, and goods to become the most prosperous critter in Astoria.
 
 ## How to run
 

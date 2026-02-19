@@ -73,8 +73,10 @@ export function RailroadOffer({ railroads, onSelect, onConfirmStartAuction, disa
           transition: transform 0.2s ease, border-color 0.15s, box-shadow 0.15s;
           box-sizing: border-box;
         }
-        .railroad-card button.railroad-card:hover:not(:disabled) {
+        .railroad-card:not(.selected):hover:not(:disabled):not(.empty) {
+          transform: translateY(-8px);
           border-color: var(--accent);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 2px var(--accent-dim);
         }
         .railroad-card .rr-name {
           font-weight: 600;
