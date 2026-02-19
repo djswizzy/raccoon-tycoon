@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { setGame } from '../_store'
+import { setGame } from '../store'
 import { initGame } from '../../src/gameLogic'
 import type { GameState } from '../../src/types'
 

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getGame, setGameState } from '../_store'
+import { getGame, setGameState } from '../../store'
 import type { GameState } from '../../../src/types'
 import {
   actionProduction,
