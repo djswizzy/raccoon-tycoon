@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getGame, setGameState } from '../../store'
-import { initGame } from '../../../src/gameLogic'
+import { getGame, setGameState } from '../../store.js'
+import { initGame } from '../../../lib/gameLogic.js'
 
 interface RoomData {
   players: Array<{ id: string; name: string; index: number }>

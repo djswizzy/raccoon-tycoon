@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getGame } from '../store'
+import { getGame } from '../store.js'
 
 interface RoomData {
   players: Array<{ id: string; name: string; index: number }>

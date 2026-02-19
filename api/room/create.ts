@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { setGame } from '../store'
-import { initGame } from '../../src/gameLogic'
-import type { GameState } from '../../src/types'
+import { setGame } from '../store.js'
+import type { GameState } from '../../lib/types.js'
 
 function shortCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase()

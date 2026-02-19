@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getGame, setGameState } from '../../store';
+import { getGame, setGameState } from '../../store.js';
 
 /**
  * POST /api/games/[id]/action

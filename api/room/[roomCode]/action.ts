@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getGame, setGameState } from '../../store'
-import type { GameState } from '../../../src/types'
+import { getGame, setGameState } from '../../store.js'
+import type { GameState } from '../../../lib/types.js'
 import {
   actionProduction,
   actionSell,
@@ -11,7 +11,7 @@ import {
   placeBid,
   passAuction,
   actionEndTurn,
-} from '../../../src/gameLogic'
+} from '../../../lib/gameLogic.js'
 
 interface RoomData {
   players: Array<{ id: string; name: string; index: number }>

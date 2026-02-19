@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getGame, addPlayerToken } from '../../store';
+import { getGame, addPlayerToken } from '../../store.js';
 
 function randomId() {
   return Math.random().toString(36).slice(2, 10);
