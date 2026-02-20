@@ -69,13 +69,17 @@ app.use((req, res, next) => {
   const origin = req.headers.origin
   const allow = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
   res.setHeader('Access-Control-Allow-Origin', allow)
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, ngrok-skip-browser-warning')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, ngrok-skip-browser-warning, User-Agent')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
   if (req.method === 'OPTIONS') {
     res.sendStatus(200)
     return
   }
   next()
+})
+
+app.get('/', (req, res) => {
+  res.json({ ok: true, message: 'Game API', docs: 'Use the app at your Vercel URL; this is the API only.' })
 })
 
 app.post('/api/room/create', (req, res) => {

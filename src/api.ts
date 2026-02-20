@@ -5,6 +5,7 @@ export const API_BASE =
 export const API_HEADERS: HeadersInit = {
   'Content-Type': 'application/json',
   'ngrok-skip-browser-warning': '1',
+  'User-Agent': 'GameClient/1.0',
 }
 
 const NGROK_PAGE_MESSAGE = 'Server returned a page instead of data.'
@@ -23,14 +24,17 @@ export async function safeJson<T = unknown>(res: Response): Promise<T> {
   }
 }
 
-/** Run an API call; if ngrok returns its HTML page, retry once. */
+/** Run an API call; if ngrok returns its HTML page, retry up to 2 times (3 attempts total). */
 export async function withNgrokRetry<T>(fn: () => Promise<T>): Promise<T> {
-  try {
-    return await fn()
-  } catch (e) {
-    if (e instanceof Error && e.message.includes(NGROK_PAGE_MESSAGE)) {
+  let last: unknown
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
       return await fn()
+    } catch (e) {
+      last = e
+      if (e instanceof Error && e.message.includes(NGROK_PAGE_MESSAGE) && attempt < 2) continue
+      throw e
     }
-    throw e
   }
+  throw last
 }
