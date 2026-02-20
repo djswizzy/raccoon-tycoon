@@ -7,6 +7,8 @@ export const API_HEADERS: HeadersInit = {
   'ngrok-skip-browser-warning': '1',
 }
 
+const NGROK_PAGE_MESSAGE = 'Server returned a page instead of data.'
+
 export async function safeJson<T = unknown>(res: Response): Promise<T> {
   const text = await res.text()
   try {
@@ -14,9 +16,21 @@ export async function safeJson<T = unknown>(res: Response): Promise<T> {
   } catch {
     if (text.trimStart().startsWith('<')) {
       throw new Error(
-        'Server returned a page instead of data. If using ngrok, the request may have hit a warning page—try again.'
+        `${NGROK_PAGE_MESSAGE} If using ngrok, the request may have hit a warning page—try again.`
       )
     }
     throw new Error(`Invalid response: ${text.slice(0, 80)}`)
+  }
+}
+
+/** Run an API call; if ngrok returns its HTML page, retry once. */
+export async function withNgrokRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn()
+  } catch (e) {
+    if (e instanceof Error && e.message.includes(NGROK_PAGE_MESSAGE)) {
+      return await fn()
+    }
+    throw e
   }
 }

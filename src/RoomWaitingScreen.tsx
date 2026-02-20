@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { GameState } from './types'
+import { API_BASE, API_HEADERS, safeJson, withNgrokRetry } from './api'
 
 type Props = {
   roomCode: string
@@ -9,8 +10,6 @@ type Props = {
   onGameStart: (state: GameState, roomCode: string, playerId: string, playerIndex: number) => void
   onBack: () => void
 }
-
-const API_BASE = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001')
 
 export function RoomWaitingScreen({
   roomCode,
@@ -29,31 +28,32 @@ export function RoomWaitingScreen({
 
     async function pollRoom() {
       try {
-        const res = await fetch(`${API_BASE}/api/room/${roomCode}?playerId=${playerId}`)
-        if (!res.ok) {
-          const text = await res.text()
-          let msg = 'Failed to fetch room status'
-          try {
-            const data = JSON.parse(text)
-            if (data?.error) msg = data.error
-            else if (res.status === 404) msg = 'Room not found. Check the code or create a new room.'
-            else if (res.status === 403) msg = 'Not in this room.'
-            else msg = `${msg} (${res.status})`
-          } catch {
-            if (res.status === 404) msg = 'Room not found. Check the code or create a new room.'
-            else msg = `${msg} (${res.status})`
-          }
-          if (mounted) setError(msg)
-          return
-        }
-        const data = await res.json()
-        if (mounted) {
-          setPlayers(data.players || [])
-          if (data.status === 'playing' && data.gameState) {
-            onGameStart(data.gameState, roomCode, playerId, playerIndex)
+        await withNgrokRetry(async () => {
+          const res = await fetch(`${API_BASE}/api/room/${roomCode}?playerId=${playerId}`, { headers: API_HEADERS })
+          if (!res.ok) {
+            let msg = 'Failed to fetch room status'
+            try {
+              const data = await safeJson<{ error?: string }>(res)
+              if (data?.error) msg = data.error
+              else if (res.status === 404) msg = 'Room not found. Check the code or create a new room.'
+              else if (res.status === 403) msg = 'Not in this room.'
+              else msg = `${msg} (${res.status})`
+            } catch {
+              if (res.status === 404) msg = 'Room not found. Check the code or create a new room.'
+              else msg = `${msg} (${res.status})`
+            }
+            if (mounted) setError(msg)
             return
           }
-        }
+          const data = await safeJson<{ players?: { name: string; index: number }[]; status?: string; gameState?: GameState }>(res)
+          if (mounted) {
+            setPlayers(data.players || [])
+            if (data.status === 'playing' && data.gameState) {
+              onGameStart(data.gameState, roomCode, playerId, playerIndex)
+              return
+            }
+          }
+        })
       } catch (err) {
         const message = (err as Error).message
         if (mounted) setError(message.includes('fetch') ? 'Cannot reach server. Check that the game server and ngrok are running, and VITE_API_URL is set.' : message)
@@ -72,18 +72,20 @@ export function RoomWaitingScreen({
 
   async function handleStart() {
     try {
-      const res = await fetch(`${API_BASE}/api/room/${roomCode}/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId }),
+      await withNgrokRetry(async () => {
+        const res = await fetch(`${API_BASE}/api/room/${roomCode}/start`, {
+          method: 'POST',
+          headers: API_HEADERS,
+          body: JSON.stringify({ playerId }),
+        })
+        if (!res.ok) {
+          const data = await safeJson<{ error?: string }>(res)
+          setError(data.error || 'Failed to start game')
+          return
+        }
+        const gameState = await safeJson<GameState>(res)
+        onGameStart(gameState, roomCode, playerId, playerIndex)
       })
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error || 'Failed to start game')
-        return
-      }
-      const gameState = await res.json()
-      onGameStart(gameState, roomCode, playerId, playerIndex)
     } catch (err) {
       setError((err as Error).message)
     }

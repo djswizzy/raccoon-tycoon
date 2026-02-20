@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { API_BASE, API_HEADERS, safeJson, withNgrokRetry } from './api'
 
 type Mode = 'choice' | 'create' | 'join'
 
@@ -6,24 +7,6 @@ type Props = {
   onPlayLocal: () => void
   onCreateRoom: (roomCode: string, playerId: string, playerIndex: number) => void
   onJoinRoom: (roomCode: string, playerId: string, playerIndex: number) => void
-}
-
-const API_BASE = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001')
-const API_HEADERS: HeadersInit = {
-  'Content-Type': 'application/json',
-  'ngrok-skip-browser-warning': '1',
-}
-
-async function safeJson(res: Response): Promise<any> {
-  const text = await res.text()
-  try {
-    return JSON.parse(text)
-  } catch {
-    if (text.trimStart().startsWith('<')) {
-      throw new Error('Server returned a page instead of data. If using ngrok, the request may have hit a warning page—try again.')
-    }
-    throw new Error(`Invalid response: ${text.slice(0, 80)}`)
-  }
 }
 
 export function LobbyScreen({ onPlayLocal, onCreateRoom, onJoinRoom }: Props) {
@@ -47,28 +30,24 @@ export function LobbyScreen({ onPlayLocal, onCreateRoom, onJoinRoom }: Props) {
     setError('')
     setLoading(true)
     try {
-      const url = `${API_BASE}/api/room/create`
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: API_HEADERS,
-        body: JSON.stringify({ playerName: playerName || 'Player 1' }),
-      })
-      if (!res.ok) {
-        const text = await res.text()
-        let data
-        try {
-          data = JSON.parse(text)
-        } catch {
-          throw new Error(`Server error: ${res.status} ${res.statusText}`)
+      await withNgrokRetry(async () => {
+        const url = `${API_BASE}/api/room/create`
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: API_HEADERS,
+          body: JSON.stringify({ playerName: playerName || 'Player 1' }),
+        })
+        if (!res.ok) {
+          const data = await safeJson<{ error?: string }>(res).catch(() => ({}))
+          throw new Error(data?.error || `Server error: ${res.status} ${res.statusText}`)
         }
-        throw new Error(data.error || 'Failed to create room')
-      }
-      const data = await safeJson(res)
-      onCreateRoom(data.roomCode, data.playerId, data.playerIndex)
+        const data = await safeJson<{ roomCode: string; playerId: string; playerIndex: number }>(res)
+        onCreateRoom(data.roomCode, data.playerId, data.playerIndex)
+      })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       if (message.includes('NetworkError') || message.includes('Failed to fetch')) {
-        setError('Cannot connect to server. Make sure the server is running on port 3001.')
+        setError('Cannot reach the game server. If local: run the server (npm run server) and use the same origin or set VITE_API_URL=http://localhost:3001. If online: ensure ngrok is running and ALLOWED_ORIGINS includes this site. Check the Network tab for the request URL and error.')
       } else {
         setError(message)
       }
@@ -82,28 +61,24 @@ export function LobbyScreen({ onPlayLocal, onCreateRoom, onJoinRoom }: Props) {
     setError('')
     setLoading(true)
     try {
-      const url = `${API_BASE}/api/room/join`
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: API_HEADERS,
-        body: JSON.stringify({ roomCode: roomCode.toUpperCase().trim(), playerName: joinName || 'Player' }),
-      })
-      if (!res.ok) {
-        const text = await res.text()
-        let data
-        try {
-          data = JSON.parse(text)
-        } catch {
-          throw new Error(`Server error: ${res.status} ${res.statusText}`)
+      await withNgrokRetry(async () => {
+        const url = `${API_BASE}/api/room/join`
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: API_HEADERS,
+          body: JSON.stringify({ roomCode: roomCode.toUpperCase().trim(), playerName: joinName || 'Player' }),
+        })
+        if (!res.ok) {
+          const data = await safeJson<{ error?: string }>(res).catch(() => ({}))
+          throw new Error(data?.error || `Server error: ${res.status} ${res.statusText}`)
         }
-        throw new Error(data.error || 'Failed to join room')
-      }
-      const data = await safeJson(res)
-      onJoinRoom(data.roomCode, data.playerId, data.playerIndex)
+        const data = await safeJson<{ roomCode: string; playerId: string; playerIndex: number }>(res)
+        onJoinRoom(data.roomCode, data.playerId, data.playerIndex)
+      })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       if (message.includes('NetworkError') || message.includes('Failed to fetch')) {
-        setError('Cannot connect to server. Make sure the server is running on port 3001.')
+        setError('Cannot reach the game server. If local: run the server (npm run server) and use the same origin or set VITE_API_URL=http://localhost:3001. If online: ensure ngrok is running and ALLOWED_ORIGINS includes this site. Check the Network tab for the request URL and error.')
       } else {
         setError(message)
       }

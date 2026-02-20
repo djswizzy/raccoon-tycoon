@@ -4,6 +4,7 @@ import type { GameAction } from './gameLogic'
 import type { LogEntry } from './GameLog'
 import { GameBoard } from './GameBoard'
 import { GameOver } from './GameOver'
+import { API_BASE, API_HEADERS, safeJson, withNgrokRetry } from './api'
 
 type Props = {
   roomCode: string
@@ -12,8 +13,6 @@ type Props = {
   initialState: GameState
   onLeave: () => void
 }
-
-const API_BASE = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001')
 
 export function OnlineGameRoom({
   roomCode,
@@ -38,24 +37,26 @@ export function OnlineGameRoom({
         : undefined
 
       try {
-        const res = await fetch(`${API_BASE}/api/room/${roomCode}/action`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            playerId,
-            type,
-            payload,
-            applyFirst: applyFirstPayload,
-          }),
+        await withNgrokRetry(async () => {
+          const res = await fetch(`${API_BASE}/api/room/${roomCode}/action`, {
+            method: 'POST',
+            headers: API_HEADERS,
+            body: JSON.stringify({
+              playerId,
+              type,
+              payload,
+              applyFirst: applyFirstPayload,
+            }),
+          })
+          if (!res.ok) {
+            const data = await safeJson<{ error?: string }>(res)
+            console.error('Action failed:', data.error)
+            return
+          }
+          const data = await safeJson<{ gameState?: GameState; gameLog?: LogEntry[] }>(res)
+          setState(data.gameState ?? data)
+          if (Array.isArray(data.gameLog)) setServerLogEntries(data.gameLog)
         })
-        if (!res.ok) {
-          const data = await res.json()
-          console.error('Action failed:', data.error)
-          return
-        }
-        const data = await res.json()
-        setState(data.gameState ?? data)
-        if (Array.isArray(data.gameLog)) setServerLogEntries(data.gameLog)
       } catch (err) {
         console.error('Action error:', err)
       }
@@ -68,23 +69,25 @@ export function OnlineGameRoom({
 
     async function pollGameState() {
       try {
-        const res = await fetch(`${API_BASE}/api/room/${roomCode}?playerId=${playerId}`, {
-          cache: 'no-store',
-          headers: { Pragma: 'no-cache', 'Cache-Control': 'no-cache' },
+        await withNgrokRetry(async () => {
+          const res = await fetch(`${API_BASE}/api/room/${roomCode}?playerId=${playerId}`, {
+            cache: 'no-store',
+            headers: { ...API_HEADERS, Pragma: 'no-cache', 'Cache-Control': 'no-cache' },
+          })
+          if (!res.ok) return
+          const data = await safeJson<{ status?: string; gameState?: GameState; gameLog?: LogEntry[] }>(res)
+          if (data.status === 'playing' && data.gameState) {
+            const stateHash = JSON.stringify(data.gameState)
+            if (stateHash !== lastStateHashRef.current && mounted) {
+              lastStateHashRef.current = stateHash
+              setState(data.gameState)
+            }
+            // Always sync log from server so all players see the same history
+            if (mounted && Array.isArray(data.gameLog)) {
+              setServerLogEntries(data.gameLog)
+            }
+          }
         })
-        if (!res.ok) return
-        const data = await res.json()
-        if (data.status === 'playing' && data.gameState) {
-          const stateHash = JSON.stringify(data.gameState)
-          if (stateHash !== lastStateHashRef.current && mounted) {
-            lastStateHashRef.current = stateHash
-            setState(data.gameState)
-          }
-          // Always sync log from server so all players see the same history
-          if (mounted && Array.isArray(data.gameLog)) {
-            setServerLogEntries(data.gameLog)
-          }
-        }
       } catch (err) {
         // Silently handle polling errors
       }
