@@ -1,5 +1,5 @@
 import type { GameState, Player, Commodity, Market, ProductionCard, BuildingTile } from './types';
-import { createProductionDeck, createBuildingDeckForGame, createRailroadDeck, TOWNS, getBuildingTileById } from './data/cards';
+import { createProductionDeck, createBuildingDeckForGame, createRailroadDeck, createTownDeck, getBuildingTileById } from './data/cards';
 
 /** Buildings whose effects apply for this player. B/P: only the active one (or first) applies; non-B/P all apply. */
 function getEffectiveBuildings(player: Player): BuildingTile[] {
@@ -80,11 +80,7 @@ export function initGame(numPlayers: number, names: string[]): GameState {
   const railroadDeck = createRailroadDeck(numPlayers);
   const railroadOffer = railroadDeck.splice(0, 2);
 
-  let townDeck = [...TOWNS];
-  townDeck.sort((a, b) => a.vp - b.vp);
-  if (numPlayers === 2) {
-    townDeck = townDeck.filter((_, i) => i % 2 === 0);
-  }
+  const townDeck = createTownDeck(numPlayers);
   const currentTown = townDeck.shift() ?? null;
 
   const { initialOffer: buildingOffer, buildingStack } = createBuildingDeckForGame();
@@ -402,6 +398,18 @@ export function actionBuyBuilding(state: GameState, buildingIndex: number): Game
   s.buildingOffer = s.buildingOffer.filter((_, i) => i !== buildingIndex);
   s.buildingPurchasesThisTurn = (s.buildingPurchasesThisTurn ?? 0) + 1;
   s.actionTakenThisTurn = true; // turn can always end; Construction Company allows optional second purchase
+
+  // If the building increases hand size, draw cards up to the new limit
+  if (tile.handSize != null) {
+    const newLimit = getMaxHandSize(p);
+    let toDraw = Math.max(0, newLimit - p.hand.length);
+    let next = s;
+    while (toDraw > 0) {
+      next = drawOneCard(next);
+      toDraw--;
+    }
+    return next;
+  }
   return s;
 }
 
@@ -434,13 +442,13 @@ export function actionSetActiveBpBuilding(state: GameState, buildingId: string):
   return s;
 }
 
-function getTownCostReduce(player: Player): number {
+export function getTownCostReduce(player: Player): number {
   const buildings = getEffectiveBuildings(player);
   const b = buildings.find(x => x.townCostReduce != null);
   return b?.townCostReduce ?? 0;
 }
 
-export function actionBuyTown(state: GameState, useSpecific: boolean): GameState {
+export function actionBuyTown(state: GameState, useSpecific: boolean, commoditiesToSpend?: Partial<Record<Commodity, number>>): GameState {
   if (state.phase !== 'playing' || !state.currentTown) return state;
   const town = state.currentTown;
   const s = { ...state, players: state.players.map(x => ({ ...x })) };
@@ -461,14 +469,28 @@ export function actionBuyTown(state: GameState, useSpecific: boolean): GameState
       if (pay > 0) p.commodities[c] = (p.commodities[c] ?? 0) - pay;
     }
   } else {
-    let need = Math.max(0, town.costAny - reduce);
-    for (const c of COMMODITIES) {
-      while (need > 0 && (p.commodities[c] ?? 0) > 0) {
-        p.commodities[c] = (p.commodities[c] ?? 0) - 1;
-        need--;
+    const need = Math.max(0, town.costAny - reduce);
+    if (commoditiesToSpend != null) {
+      const sum = COMMODITIES.reduce((t, c) => t + (commoditiesToSpend[c] ?? 0), 0);
+      if (sum !== need) return state;
+      for (const c of COMMODITIES) {
+        const pay = commoditiesToSpend[c] ?? 0;
+        if (pay > 0 && (p.commodities[c] ?? 0) < pay) return state;
       }
+      for (const c of COMMODITIES) {
+        const pay = commoditiesToSpend[c] ?? 0;
+        if (pay > 0) p.commodities[c] = (p.commodities[c] ?? 0) - pay;
+      }
+    } else {
+      let left = need;
+      for (const c of COMMODITIES) {
+        while (left > 0 && (p.commodities[c] ?? 0) > 0) {
+          p.commodities[c] = (p.commodities[c] ?? 0) - 1;
+          left--;
+        }
+      }
+      if (left > 0) return state;
     }
-    if (need > 0) return state;
   }
 
   p.towns = [...p.towns, town];
@@ -570,7 +592,7 @@ export type GameAction =
   | { type: 'buyBuilding'; buildingIndex: number }
   | { type: 'upgradeBBuilding'; buildingId: string }
   | { type: 'setActiveBpBuilding'; buildingId: string }
-  | { type: 'buyTown'; useSpecific: boolean }
+  | { type: 'buyTown'; useSpecific: boolean; commoditiesToSpend?: Partial<Record<Commodity, number>> }
   | { type: 'startAuction'; railroadIndex: number }
   | { type: 'placeBid'; amount: number }
   | { type: 'passAuction' }
@@ -591,7 +613,7 @@ export function applyGameAction(state: GameState, action: GameAction): GameState
     case 'setActiveBpBuilding':
       return actionSetActiveBpBuilding(state, action.buildingId)
     case 'buyTown':
-      return actionBuyTown(state, action.useSpecific)
+      return actionBuyTown(state, action.useSpecific, action.commoditiesToSpend)
     case 'startAuction':
       return startAuction(state, action.railroadIndex)
     case 'placeBid':

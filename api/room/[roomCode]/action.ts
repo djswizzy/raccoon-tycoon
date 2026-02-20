@@ -55,7 +55,7 @@ function applyAction(state: GameState, type: string, payload: Record<string, unk
     case 'setActiveBpBuilding':
       return actionSetActiveBpBuilding(state, payload.buildingId as string)
     case 'buyTown':
-      return actionBuyTown(state, payload.useSpecific as boolean)
+      return actionBuyTown(state, payload.useSpecific as boolean, payload.commoditiesToSpend as Partial<Record<string, number>> | undefined)
     case 'startAuction':
       return startAuction(state, payload.railroadIndex as number)
     case 'placeBid':

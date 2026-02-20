@@ -3,11 +3,12 @@ import { flushSync } from 'react-dom'
 import type { GameState, BuildingTile, Commodity } from './types'
 import type { GameAction } from './gameLogic'
 import { COMMODITY_NAMES, COMMODITY_EMOJI, getBuildingTileById } from './data/cards'
-import { COMMODITIES, COMMODITY_PRICE_MAX, actionProduction, actionBuyTown, actionBuyBuilding, actionUpgradeBBuilding, actionSetActiveBpBuilding, startAuction, placeBid, passAuction, actionSell, actionDiscard, actionEndTurn, cloneGameState, getMaxProduction, getProductionList } from './gameLogic'
+import { COMMODITIES, COMMODITY_PRICE_MAX, actionProduction, actionBuyTown, actionBuyBuilding, actionUpgradeBBuilding, actionSetActiveBpBuilding, startAuction, placeBid, passAuction, actionSell, actionDiscard, actionEndTurn, cloneGameState, getMaxProduction, getProductionList, getTownCostReduce } from './gameLogic'
 import { MarketStrip } from './MarketStrip'
 import { DiscardDownPanel } from './DiscardDownPanel'
 import { RailroadOffer, formatRailroadVpSchedule } from './RailroadOffer'
 import { TownCard } from './TownCard'
+import { TownPayAnyPanel } from './TownPayAnyPanel'
 import { BuildingOffer, BuildingInfoModal } from './BuildingOffer'
 import { PlayerHand } from './PlayerHand'
 import { AuctionPanel } from './AuctionPanel'
@@ -97,6 +98,7 @@ function formatActionMessage(action: GameAction, state: GameState, prevState?: G
 
 export function GameBoard({ state, setState, dispatch, playerIndex, serverLogEntries }: Props) {
   const [showSellPanel, setShowSellPanel] = useState(false)
+  const [showTownPayAnyPanel, setShowTownPayAnyPanel] = useState(false)
   const [infoBuilding, setInfoBuilding] = useState<BuildingTile | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [productionSelection, setProductionSelection] = useState<number[]>([])
@@ -230,6 +232,22 @@ export function GameBoard({ state, setState, dispatch, playerIndex, serverLogEnt
       setState(nextState)
     }
     setPendingAction(null)
+  }
+
+  function confirmBuyTown(useSpecific: boolean, commoditiesToSpend?: Partial<Record<Commodity, number>>) {
+    const action: GameAction = { type: 'buyTown', useSpecific, commoditiesToSpend }
+    if (dispatch) {
+      addTurnAction(action, state.currentPlayerIndex)
+      dispatch(action)
+    } else {
+      setStateBeforeAction(cloneGameState(state))
+      addTurnAction(action, state.currentPlayerIndex)
+      const nextState = actionBuyTown(state, useSpecific, commoditiesToSpend)
+      prevStateRef.current = state
+      setState(nextState)
+    }
+    setPendingAction(null)
+    setShowTownPayAnyPanel(false)
   }
 
   function upgradeBBuilding(buildingId: string) {
@@ -384,8 +402,8 @@ export function GameBoard({ state, setState, dispatch, playerIndex, serverLogEnt
                       {state.currentTown ? (
                         <TownCard
                           town={state.currentTown}
-                          onBuySpecific={() => togglePending({ type: 'buyTown', useSpecific: true })}
-                          onBuyAny={() => togglePending({ type: 'buyTown', useSpecific: false })}
+                          onBuySpecific={() => confirmBuyTown(true)}
+                          onBuyAny={() => setShowTownPayAnyPanel(true)}
                           player={current}
                           selectedBuySpecific={pendingAction?.type === 'buyTown' ? pendingAction.useSpecific : null}
                           actionsDisabled={!isMyTurn || actionTakenThisTurn}
@@ -668,6 +686,16 @@ export function GameBoard({ state, setState, dispatch, playerIndex, serverLogEnt
             }
           }}
           onClose={() => setShowSellPanel(false)}
+        />
+      )}
+
+      {showTownPayAnyPanel && state.currentTown && (
+        <TownPayAnyPanel
+          town={state.currentTown}
+          totalToSpend={Math.max(0, state.currentTown.costAny - getTownCostReduce(me))}
+          commodities={me.commodities}
+          onConfirm={(selection) => confirmBuyTown(false, selection)}
+          onCancel={() => setShowTownPayAnyPanel(false)}
         />
       )}
 

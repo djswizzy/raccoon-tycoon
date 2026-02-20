@@ -84,24 +84,43 @@ export function createRailroadDeck(numPlayers: number): RailroadCard[] {
   return shuffle(deck);
 }
 
+/** Town cards from towns.csv: name, points, specific resource cost, wild (any) cost. */
 export const TOWNS: TownCard[] = [
-  { id: 't-1', name: 'Millbrook', vp: 2, costSpecific: { wheat: 2, wood: 1 }, costAny: 0 },
-  { id: 't-2', name: 'Ironvale', vp: 2, costSpecific: { iron: 2, coal: 1 }, costAny: 0 },
-  { id: 't-3', name: 'Coalton', vp: 2, costSpecific: { coal: 2, iron: 1 }, costAny: 0 },
-  { id: 't-4', name: 'Goodhaven', vp: 2, costSpecific: { goods: 2, luxury: 1 }, costAny: 0 },
-  { id: 't-5', name: 'Wheatfield', vp: 3, costSpecific: { wheat: 3 }, costAny: 4 },
-  { id: 't-6', name: 'Lumberton', vp: 3, costSpecific: { wood: 3 }, costAny: 4 },
-  { id: 't-7', name: 'Steelburg', vp: 3, costSpecific: { iron: 3 }, costAny: 4 },
-  { id: 't-8', name: 'Blackmoor', vp: 3, costSpecific: { coal: 3 }, costAny: 4 },
-  { id: 't-9', name: 'Port Mercado', vp: 3, costSpecific: { goods: 3 }, costAny: 4 },
-  { id: 't-10', name: 'Grand Luxe', vp: 3, costSpecific: { luxury: 3 }, costAny: 4 },
-  { id: 't-11', name: 'Crossroads', vp: 4, costSpecific: {}, costAny: 5 },
-  { id: 't-12', name: 'Harbor Town', vp: 4, costSpecific: { goods: 2, luxury: 2 }, costAny: 0 },
-  { id: 't-13', name: 'Forge City', vp: 4, costSpecific: { iron: 2, coal: 2 }, costAny: 0 },
-  { id: 't-14', name: 'Valley View', vp: 4, costSpecific: { wheat: 2, wood: 2 }, costAny: 0 },
-  { id: 't-15', name: 'Capital City', vp: 5, costSpecific: {}, costAny: 6 },
-  { id: 't-16', name: 'Astoria Central', vp: 5, costSpecific: { luxury: 2, goods: 2 }, costAny: 0 },
+  { id: 't-1', name: 'Beaver Ford', vp: 2, costSpecific: { wood: 2 }, costAny: 4 },
+  { id: 't-2', name: 'Bridgewater', vp: 2, costSpecific: { wheat: 2 }, costAny: 4 },
+  { id: 't-3', name: 'Molehill', vp: 2, costSpecific: { iron: 2 }, costAny: 4 },
+  { id: 't-4', name: 'Black Friar', vp: 2, costSpecific: { coal: 2 }, costAny: 4 },
+  { id: 't-5', name: 'Foxwoods', vp: 3, costSpecific: { wood: 3 }, costAny: 5 },
+  { id: 't-6', name: 'Trinity', vp: 3, costSpecific: { goods: 3 }, costAny: 5 },
+  { id: 't-7', name: 'Newgate', vp: 3, costSpecific: { wheat: 3 }, costAny: 4 },
+  { id: 't-8', name: 'Marketshire', vp: 3, costSpecific: { luxury: 3 }, costAny: 5 },
+  { id: 't-9', name: 'Badger Downs', vp: 4, costSpecific: { wheat: 4 }, costAny: 6 },
+  { id: 't-10', name: 'Wild Grove', vp: 4, costSpecific: { wood: 4 }, costAny: 6 },
+  { id: 't-11', name: 'Dunmoor', vp: 4, costSpecific: { coal: 4 }, costAny: 6 },
+  { id: 't-12', name: "Bishop's Glen", vp: 4, costSpecific: { iron: 4 }, costAny: 6 },
+  { id: 't-13', name: "Land's End", vp: 5, costSpecific: { luxury: 5 }, costAny: 8 },
+  { id: 't-14', name: 'Drover Crossing', vp: 5, costSpecific: { goods: 5 }, costAny: 8 },
+  { id: 't-15', name: 'Canterbury Woods', vp: 5, costSpecific: { wood: 5 }, costAny: 8 },
+  { id: 't-16', name: 'River Ridge', vp: 5, costSpecific: { wheat: 5 }, costAny: 8 },
 ];
+
+/** Town deck: stacked by increasing VP (2, 3, 4, 5), order within each VP level randomized. For 2p, every other card is removed. */
+export function createTownDeck(numPlayers: number): TownCard[] {
+  const byVp = new Map<number, TownCard[]>();
+  for (const t of TOWNS) {
+    if (!byVp.has(t.vp)) byVp.set(t.vp, []);
+    byVp.get(t.vp)!.push(t);
+  }
+  const deck: TownCard[] = [];
+  for (const vp of [2, 3, 4, 5]) {
+    const group = byVp.get(vp) ?? [];
+    deck.push(...shuffle(group));
+  }
+  if (numPlayers === 2) {
+    return deck.filter((_, i) => i % 2 === 0);
+  }
+  return deck;
+}
 
 const COMMODITY_NAMES: Record<Commodity, string> = {
   wheat: 'Wheat', wood: 'Wood', iron: 'Iron', coal: 'Coal', goods: 'Goods', luxury: 'Luxury',
@@ -147,8 +166,8 @@ const BUILDING_TILES: BuildingTile[] = [
   { id: 'mayors-office', name: "Mayor's Office", cost: 30, description: 'Each Building you own is worth +1 VP at the end of the game.', vpPerBuilding: 1 },
   { id: 'trading-floor', name: 'Trading Floor', cost: 15, description: "When using the 'Produce' action, you may also buy any number of one Commodity currently owned by one other player at the current market price (before the price is affected by the Price & Production card). They may not refuse.", tradingFloor: true },
   { id: 'export-company', name: 'Export Company', cost: 30, description: "When selling a Commodity, you may increase the price of that Commodity by $3 before selling. Maximum Price is limited to the value shown on the board for that Commodity.", sellPriceBonus: 3 },
-  { id: 'cottage-industry-p', name: 'Cottage Industry (p)', cost: 30, description: 'You may produce up to four (4) of the Commodity Tokens shown in the Production area of a Price/ Production Card.', productionLimit: 4, bpTag: true },
-  { id: 'factory-x2-p', name: 'Factory (p)', cost: 40, description: 'You may produce up to five (5) of the Commodity Tokens shown in the Production area of a Price/ Production Card.', productionLimit: 5, bpTag: true },
+  { id: 'cottage-industry-p', name: 'Cottage Industry (P)', cost: 30, description: 'You may produce up to four (4) of the Commodity Tokens shown in the Production area of a Price/ Production Card.', productionLimit: 4, bpTag: true },
+  { id: 'factory-x2-p', name: 'Factory (P)', cost: 40, description: 'You may produce up to five (5) of the Commodity Tokens shown in the Production area of a Price/ Production Card.', productionLimit: 5, bpTag: true },
 ];
 
 const B_LEVEL1_TILES = BUILDING_TILES.filter(t => t.bpLevel === 1 && t.bpUpgradeToId);
