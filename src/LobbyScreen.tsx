@@ -9,6 +9,22 @@ type Props = {
 }
 
 const API_BASE = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001')
+const API_HEADERS: HeadersInit = {
+  'Content-Type': 'application/json',
+  'ngrok-skip-browser-warning': '1',
+}
+
+async function safeJson(res: Response): Promise<any> {
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    if (text.trimStart().startsWith('<')) {
+      throw new Error('Server returned a page instead of data. If using ngrok, the request may have hit a warning page—try again.')
+    }
+    throw new Error(`Invalid response: ${text.slice(0, 80)}`)
+  }
+}
 
 export function LobbyScreen({ onPlayLocal, onCreateRoom, onJoinRoom }: Props) {
   const [mode, setMode] = useState<Mode>('choice')
@@ -34,7 +50,7 @@ export function LobbyScreen({ onPlayLocal, onCreateRoom, onJoinRoom }: Props) {
       const url = `${API_BASE}/api/room/create`
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: API_HEADERS,
         body: JSON.stringify({ playerName: playerName || 'Player 1' }),
       })
       if (!res.ok) {
@@ -47,7 +63,7 @@ export function LobbyScreen({ onPlayLocal, onCreateRoom, onJoinRoom }: Props) {
         }
         throw new Error(data.error || 'Failed to create room')
       }
-      const data = await res.json()
+      const data = await safeJson(res)
       onCreateRoom(data.roomCode, data.playerId, data.playerIndex)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -69,7 +85,7 @@ export function LobbyScreen({ onPlayLocal, onCreateRoom, onJoinRoom }: Props) {
       const url = `${API_BASE}/api/room/join`
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: API_HEADERS,
         body: JSON.stringify({ roomCode: roomCode.toUpperCase().trim(), playerName: joinName || 'Player' }),
       })
       if (!res.ok) {
@@ -82,7 +98,7 @@ export function LobbyScreen({ onPlayLocal, onCreateRoom, onJoinRoom }: Props) {
         }
         throw new Error(data.error || 'Failed to join room')
       }
-      const data = await res.json()
+      const data = await safeJson(res)
       onJoinRoom(data.roomCode, data.playerId, data.playerIndex)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)

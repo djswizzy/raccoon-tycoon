@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { getGame, setGameState } from '../../store.js'
-import type { GameState } from '../../../lib/types.js'
+import type { GameState, Commodity } from '../../../lib/types.js'
 import {
   actionProduction,
   actionSell,
@@ -43,7 +43,7 @@ function pushLogEntry(roomData: RoomData, playerIndex: number, type: string, pay
 function applyAction(state: GameState, type: string, payload: Record<string, unknown>): GameState {
   switch (type) {
     case 'production':
-      return actionProduction(state, payload.cardIndex as number, payload.commoditiesToTake as string[] | undefined, payload.tradingFloorPurchase as { fromPlayerIndex: number; commodity: string; quantity: number } | undefined)
+      return actionProduction(state, payload.cardIndex as number, payload.commoditiesToTake as Commodity[] | undefined, payload.tradingFloorPurchase as { fromPlayerIndex: number; commodity: Commodity; quantity: number } | undefined)
     case 'sell':
       return actionSell(state, payload.commodity as Parameters<typeof actionSell>[1], payload.quantity as number, payload.useExportCompany as boolean | undefined)
     case 'discard':
@@ -109,16 +109,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!roomData.gameLog) roomData.gameLog = []
     let nextState = roomData.gameState
     if (applyFirst) {
-      const stateAfterFirst = applyAction(nextState, applyFirst.type, applyFirst.payload)
+      const firstPayload = applyFirst.payload ?? {}
+      const stateAfterFirst = applyAction(nextState, applyFirst.type, firstPayload)
       if (applyFirst.type !== 'endTurn' && applyFirst.type !== 'placeBid' && applyFirst.type !== 'passAuction') {
-        pushLogEntry(roomData, player.index, applyFirst.type, applyFirst.payload, nextState, stateAfterFirst)
+        pushLogEntry(roomData, player.index, applyFirst.type, firstPayload, nextState, stateAfterFirst)
       }
       nextState = stateAfterFirst
     }
     const stateBeforeMain = nextState
-    nextState = applyAction(nextState, type, payload)
+    const mainPayload = payload ?? {}
+    nextState = applyAction(nextState, type, mainPayload)
     if (type !== 'endTurn' && type !== 'placeBid' && type !== 'passAuction') {
-      pushLogEntry(roomData, player.index, type, payload, stateBeforeMain, nextState)
+      pushLogEntry(roomData, player.index, type, mainPayload, stateBeforeMain, nextState)
     }
     // Log auction result as soon as auction completes (placeBid or passAuction resolved it)
     const auctionResult = nextState.lastAuctionResult
@@ -130,7 +132,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         message: `${winnerName} won ${auctionResult.railroadName} for $${auctionResult.amount}`,
         timestamp: Date.now(),
       })
-      delete (nextState as Record<string, unknown>).lastAuctionResult
+      delete (nextState as unknown as Record<string, unknown>).lastAuctionResult
     }
     roomData.gameState = nextState
     setGameState(roomCode, roomData)
