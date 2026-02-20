@@ -31,7 +31,19 @@ export function RoomWaitingScreen({
       try {
         const res = await fetch(`${API_BASE}/api/room/${roomCode}?playerId=${playerId}`)
         if (!res.ok) {
-          if (mounted) setError('Failed to fetch room status')
+          const text = await res.text()
+          let msg = 'Failed to fetch room status'
+          try {
+            const data = JSON.parse(text)
+            if (data?.error) msg = data.error
+            else if (res.status === 404) msg = 'Room not found. Check the code or create a new room.'
+            else if (res.status === 403) msg = 'Not in this room.'
+            else msg = `${msg} (${res.status})`
+          } catch {
+            if (res.status === 404) msg = 'Room not found. Check the code or create a new room.'
+            else msg = `${msg} (${res.status})`
+          }
+          if (mounted) setError(msg)
           return
         }
         const data = await res.json()
@@ -43,7 +55,8 @@ export function RoomWaitingScreen({
           }
         }
       } catch (err) {
-        if (mounted) setError((err as Error).message)
+        const message = (err as Error).message
+        if (mounted) setError(message.includes('fetch') ? 'Cannot reach server. Check that the game server and ngrok are running, and VITE_API_URL is set.' : message)
       }
     }
 
