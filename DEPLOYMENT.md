@@ -1,61 +1,57 @@
-# Deployment Guide for Vercel
+# Deploying with Vercel (client) + local server (ngrok)
 
-This game has been converted from Socket.io to polling-based updates for Vercel compatibility.
+You can host the **client** on Vercel and run the **game server** on your machine, exposing it with ngrok so the Vercel app can talk to it.
 
-## Changes Made
+## 1. Deploy the client to Vercel
 
-1. **API Endpoints**: Created serverless functions in `/api/room/`:
-   - `POST /api/room/create` - Create a new room
-   - `POST /api/room/join` - Join an existing room
-   - `GET /api/room/[roomCode]` - Poll for room status and game state
-   - `POST /api/room/[roomCode]/start` - Start the game (host only)
-   - `POST /api/room/[roomCode]/action` - Submit game actions
+1. Push your repo to GitHub and [import the project in Vercel](https://vercel.com/new).
+2. In the Vercel project **Settings → Environment Variables**, add:
+   - **Name:** `VITE_API_URL`
+   - **Value:** your ngrok URL **without** a trailing slash (e.g. `https://abc123.ngrok-free.app`)
+   - Apply to **Production**, **Preview**, and **Development** if you use them.
+3. Redeploy so the build picks up `VITE_API_URL` (Vite bakes it in at build time).
 
-2. **Client Updates**: 
-   - `RoomWaitingScreen` now polls every 2 seconds for room updates
-   - `OnlineGameRoom` now polls every 1 second for game state updates
-   - Actions are sent via HTTP POST instead of Socket.io events
+The app will be served from `https://your-project.vercel.app` (or your custom domain). All API and polling requests will go to `VITE_API_URL` (your ngrok URL).
 
-3. **Removed Dependencies**: 
-   - Socket.io is no longer used in the client (but still in package.json for local dev server)
-   - The `server/index.ts` file remains for local development but isn't needed for Vercel
+## 2. Run the server locally and expose with ngrok
 
-## Deploying to Vercel
-
-1. **Install Vercel CLI** (if not already installed):
+1. **Start the game server:**
    ```bash
-   npm i -g vercel
+   npm run server
+   ```
+   By default it listens on port 3001.
+
+2. **Allow the Vercel app origin in CORS.** Set `ALLOWED_ORIGINS` to your Vercel URL (and optionally your ngrok URL):
+   ```bash
+   export ALLOWED_ORIGINS="https://your-project.vercel.app,https://your-project-*.vercel.app"
+   npm run server
+   ```
+   Or in a `.env` file (if you use one):
+   ```
+   ALLOWED_ORIGINS=https://your-project.vercel.app
    ```
 
-2. **Deploy**:
+3. **Expose the server with ngrok:**
    ```bash
-   vercel
+   ngrok http 3001
    ```
-   Follow the prompts to link your project or create a new one.
+   Use the HTTPS URL ngrok prints (e.g. `https://abc123.ngrok-free.app`) as `VITE_API_URL` in Vercel (step 1).
 
-3. **Environment Variables**: None required for basic functionality.
+## 3. Optional: use a fixed ngrok domain
 
-4. **Build Settings**: Vercel will automatically detect Vite and use the build settings from `vercel.json`.
+With a paid ngrok plan you can use a fixed subdomain so you don’t have to change `VITE_API_URL` after each restart:
 
-## Important Notes
+```bash
+ngrok http 3001 --domain=your-fixed-name.ngrok-free.app
+```
 
-- **In-Memory Store**: The current implementation uses an in-memory store (`api/_store.ts`). This means:
-  - Game state is lost when serverless functions restart
-  - Multiple Vercel instances won't share state
-  - **For production**, you should replace this with Vercel KV, Postgres, or another persistent store
+Then set `VITE_API_URL` in Vercel to `https://your-fixed-name.ngrok-free.app`.
 
-- **Polling Frequency**: 
-  - Room waiting screen: 2 seconds
-  - Game state: 1 second
-  - You can adjust these in `RoomWaitingScreen.tsx` and `OnlineGameRoom.tsx` if needed
+## Summary
 
-- **Local Development**: 
-  - For local development with the Socket.io server, run `npm run dev:all`
-  - For testing Vercel functions locally, use `vercel dev`
+| Where        | What runs |
+|-------------|-----------|
+| **Vercel**  | Static client (React SPA). Build uses `VITE_API_URL` for the API base. |
+| **Your machine** | Express server (`npm run server`) + ngrok. Set `ALLOWED_ORIGINS` to your Vercel URL. |
 
-## Next Steps for Production
-
-1. Replace `api/_store.ts` with a persistent store (Vercel KV recommended)
-2. Consider adding rate limiting for API endpoints
-3. Add error tracking (e.g., Sentry)
-4. Optimize polling intervals based on usage patterns
+After each deploy on Vercel, the client keeps using the same `VITE_API_URL` (your ngrok URL). As long as the server is running and ngrok is up, the game will work.
