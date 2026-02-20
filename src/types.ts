@@ -83,4 +83,6 @@ export interface GameState {
   actionTakenThisTurn?: boolean;
   /** Number of production cards to draw for current player when they end their turn. */
   pendingDrawCount?: number;
+  /** Set when an auction just resolved (for logging); should be cleared after logging. */
+  lastAuctionResult?: { railroadName: string; winnerIndex: number; amount: number };
 }

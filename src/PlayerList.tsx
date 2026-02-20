@@ -23,7 +23,6 @@ function getPlayerColor(playerIndex: number): string {
 export function PlayerList({ state, currentPlayerIndex, onSelectPlayer }: Props) {
   return (
     <div className="player-list">
-      <h3>Players</h3>
       <div className="player-list-items">
         {state.players.map((player, index) => {
           const isCurrent = index === currentPlayerIndex
@@ -83,11 +82,6 @@ export function PlayerList({ state, currentPlayerIndex, onSelectPlayer }: Props)
           display: flex;
           flex-direction: column;
           gap: 0.5rem;
-        }
-        .player-list h3 {
-          font-size: 0.9rem;
-          color: var(--text-muted);
-          margin: 0 0 0.5rem 0;
         }
         .player-list-items {
           display: flex;

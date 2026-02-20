@@ -104,15 +104,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let nextState = roomData.gameState
     if (applyFirst) {
       const stateAfterFirst = applyAction(nextState, applyFirst.type, applyFirst.payload)
-      if (applyFirst.type !== 'endTurn') {
+      if (applyFirst.type !== 'endTurn' && applyFirst.type !== 'placeBid' && applyFirst.type !== 'passAuction') {
         pushLogEntry(roomData, player.index, applyFirst.type, applyFirst.payload, nextState, stateAfterFirst)
       }
       nextState = stateAfterFirst
     }
     const stateBeforeMain = nextState
     nextState = applyAction(nextState, type, payload)
-    if (type !== 'endTurn') {
+    if (type !== 'endTurn' && type !== 'placeBid' && type !== 'passAuction') {
       pushLogEntry(roomData, player.index, type, payload, stateBeforeMain, nextState)
+    }
+    // Log auction result as soon as auction completes (placeBid or passAuction resolved it)
+    const auctionResult = nextState.lastAuctionResult
+    if (auctionResult) {
+      const winnerName = nextState.players[auctionResult.winnerIndex]?.name ?? 'Player'
+      roomData.gameLog.push({
+        id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        playerIndex: auctionResult.winnerIndex,
+        message: `${winnerName} won ${auctionResult.railroadName} for $${auctionResult.amount}`,
+        timestamp: Date.now(),
+      })
+      delete (nextState as Record<string, unknown>).lastAuctionResult
     }
     roomData.gameState = nextState
     setGameState(roomCode, roomData)

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import type { GameState } from './types'
 import type { GameAction } from './gameLogic'
 import { COMMODITY_NAMES, COMMODITY_EMOJI } from './data/cards'
@@ -95,9 +96,9 @@ export function GameBoard({ state, setState, dispatch, playerIndex, serverLogEnt
   const isMyTurn = !isOnline || state.currentPlayerIndex === playerIndex
   const isAuction = state.phase === 'auction'
 
-  // Reset log when game starts
+  // Reset log only when game first enters playing (not when returning from auction)
   useEffect(() => {
-    if (state.phase === 'playing' && prevStateRef.current.phase !== 'playing') {
+    if (state.phase === 'playing' && prevStateRef.current.phase !== 'playing' && prevStateRef.current.phase !== 'auction') {
       setLogEntries([])
       turnActionsRef.current = []
       setTurnActions([])
@@ -121,7 +122,9 @@ export function GameBoard({ state, setState, dispatch, playerIndex, serverLogEnt
   }
 
   function logTurnActions() {
-    const actions = turnActionsRef.current.filter(({ action }) => action.type !== 'endTurn')
+    const actions = turnActionsRef.current.filter(
+      ({ action }) => action.type !== 'endTurn' && action.type !== 'placeBid' && action.type !== 'passAuction'
+    )
     if (actions.length === 0) return
 
     const playerIdx = actions[0].playerIdx
@@ -504,8 +507,22 @@ export function GameBoard({ state, setState, dispatch, playerIndex, serverLogEnt
             } else {
               addTurnAction(action, state.currentPlayerIndex)
               const nextState = placeBid(state, amount)
+              const result = nextState.lastAuctionResult
+              if (result) {
+                const winnerName = nextState.players[result.winnerIndex]?.name ?? 'Player'
+                const entry: LogEntry = {
+                  id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                  playerIndex: result.winnerIndex,
+                  message: `${winnerName} won ${result.railroadName} for $${result.amount}`,
+                  timestamp: Date.now(),
+                }
+                flushSync(() => setLogEntries(prev => [...prev, entry]))
+                const { lastAuctionResult: _, ...rest } = nextState
+                setState(rest as GameState)
+              } else {
+                setState(nextState)
+              }
               prevStateRef.current = state
-              setState(nextState)
             }
           }}
           onPass={() => {
@@ -516,8 +533,22 @@ export function GameBoard({ state, setState, dispatch, playerIndex, serverLogEnt
             } else {
               addTurnAction(action, state.currentPlayerIndex)
               const nextState = passAuction(state)
+              const result = nextState.lastAuctionResult
+              if (result) {
+                const winnerName = nextState.players[result.winnerIndex]?.name ?? 'Player'
+                const entry: LogEntry = {
+                  id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+                  playerIndex: result.winnerIndex,
+                  message: `${winnerName} won ${result.railroadName} for $${result.amount}`,
+                  timestamp: Date.now(),
+                }
+                flushSync(() => setLogEntries(prev => [...prev, entry]))
+                const { lastAuctionResult: _, ...rest } = nextState
+                setState(rest as GameState)
+              } else {
+                setState(nextState)
+              }
               prevStateRef.current = state
-              setState(nextState)
             }
           }}
           onClose={dispatch ? undefined : closeAuction}

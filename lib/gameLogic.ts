@@ -293,6 +293,7 @@ function nextAuctionTurn(s: GameState): GameState {
     if (winner >= 0) {
       s.players[winner].money -= s.auctionBids[winner];
       s.players[winner].railroads = [...s.players[winner].railroads, s.auctionRailroad!];
+      s.lastAuctionResult = { railroadName: s.auctionRailroad!.name, winnerIndex: winner, amount: s.auctionBids[winner] };
       const offerIndex = s.railroadOffer.findIndex(r => r.id === s.auctionRailroad!.id);
       s.railroadOffer = s.railroadOffer.filter((_, i) => i !== offerIndex);
       if (s.railroadDeck.length > 0) {
@@ -306,6 +307,7 @@ function nextAuctionTurn(s: GameState): GameState {
     const auctionStarter = s.auctionStarterIndex;
     if (winner >= 0 && winner !== auctionStarter) {
       s.currentPlayerIndex = auctionStarter;
+      s.actionTakenThisTurn = false; // starter gets a full turn (can start another auction, etc.)
     }
     return s;
   }

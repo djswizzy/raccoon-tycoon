@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { GameState } from './types'
+import { getPlayerColor } from './GameLog'
 
 type Props = {
   state: GameState
@@ -37,6 +38,35 @@ export function AuctionPanel({ state, onBid, onPass, onClose, canAct = true }: P
           Current high: ${Math.max(...state.auctionBids)} by{' '}
           {state.players[state.auctionBids.indexOf(Math.max(...state.auctionBids))].name}
         </p>
+        <div className="auction-players">
+          {state.players.map((player, index) => {
+            const isCurrent = index === state.currentPlayerIndex
+            const hasPassed = state.auctionPassed[index]
+            const bid = state.auctionBids[index]
+            const color = getPlayerColor(index)
+            return (
+              <div
+                key={player.id}
+                className={`auction-player-wrap ${isCurrent ? 'current-turn' : ''}`}
+              >
+                {isCurrent && <div className="auction-arrow" aria-hidden>▼ Your turn</div>}
+                <div
+                  className={`auction-player-row ${hasPassed ? 'passed' : ''}`}
+                  style={!hasPassed ? { borderLeftColor: color } : undefined}
+                >
+                  <span className="auction-player-name" style={!hasPassed ? { color } : undefined}>
+                    {player.name}
+                  </span>
+                  {hasPassed ? (
+                    <span className="auction-player-status">Passed</span>
+                  ) : (
+                    <span className="auction-player-bid">${bid}</span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
         {!passed && canAct ? (
           <>
             <div className="bid-row">
@@ -79,23 +109,26 @@ export function AuctionPanel({ state, onBid, onPass, onClose, canAct = true }: P
           z-index: 100;
         }
         .auction-panel {
-          max-width: 400px;
-          padding: 1.5rem;
+          max-width: 560px;
+          width: 90%;
+          padding: 2.5rem;
+          font-size: 1.15rem;
         }
         .auction-panel-header {
           display: flex;
           align-items: flex-start;
           justify-content: space-between;
-          gap: 0.5rem;
+          gap: 0.75rem;
         }
         .auction-panel-header h2 {
-          margin: 0 0 0.25rem 0;
+          margin: 0 0 0.5rem 0;
+          font-size: 1.75rem;
         }
         .auction-close {
           background: none;
           border: none;
           color: var(--text-muted);
-          font-size: 1.5rem;
+          font-size: 2rem;
           line-height: 1;
           cursor: pointer;
           padding: 0 0.25rem;
@@ -104,29 +137,80 @@ export function AuctionPanel({ state, onBid, onPass, onClose, canAct = true }: P
           color: var(--text);
         }
         .auction-panel p {
-          margin: 0.5rem 0;
+          margin: 0.75rem 0;
           color: var(--text-muted);
+          font-size: 1.1rem;
         }
         .current-high {
+          font-size: 1.1rem;
+        }
+        .auction-players {
+          display: flex;
+          flex-direction: column;
+          gap: 0.35rem;
+          margin: 1rem 0;
+        }
+        .auction-player-wrap {
+          margin-bottom: 0.15rem;
+        }
+        .auction-player-wrap.current-turn .auction-player-row {
+          background: rgba(184, 84, 80, 0.25);
+          border-radius: 6px;
+        }
+        .auction-player-row {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.4rem 0.6rem;
+          border-radius: 6px;
+          border-left: 4px solid transparent;
+        }
+        .auction-player-row.passed {
+          opacity: 0.5;
+          color: var(--text-muted);
+        }
+        .auction-arrow {
+          color: var(--accent);
+          font-size: 0.85rem;
+          font-weight: 600;
+          margin-bottom: 0.2rem;
+          padding-left: 0.6rem;
+        }
+        .auction-player-name {
+          flex: 1;
+          font-weight: 500;
+        }
+        .auction-player-status {
           font-size: 0.9rem;
+          color: var(--text-muted);
+          font-style: italic;
+        }
+        .auction-player-bid {
+          font-weight: 600;
+          min-width: 2.5rem;
+          text-align: right;
         }
         .bid-row {
           display: flex;
-          gap: 0.5rem;
+          gap: 0.75rem;
           align-items: center;
-          margin: 1rem 0;
+          margin: 1.5rem 0;
         }
         .bid-row input {
-          width: 5rem;
-          padding: 0.5rem;
-          font-size: 1rem;
+          width: 7rem;
+          padding: 0.75rem;
+          font-size: 1.25rem;
           background: var(--surface2);
           border: 1px solid var(--border);
           border-radius: 6px;
           color: var(--text);
         }
+        .bid-row button {
+          padding: 0.75rem 1.25rem;
+          font-size: 1.1rem;
+        }
         .your-money {
-          font-size: 0.85rem;
+          font-size: 1rem;
         }
       `}</style>
     </div>
