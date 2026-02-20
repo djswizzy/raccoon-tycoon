@@ -273,10 +273,14 @@ export function GameBoard({ state, setState, dispatch, playerIndex, serverLogEnt
   }
 
   function undo() {
-    if (stateBeforeAction) {
-      setState(stateBeforeAction)
-      setStateBeforeAction(null)
+    if (!stateBeforeAction) return
+    if (turnActionsRef.current.length > 0) {
+      turnActionsRef.current = turnActionsRef.current.slice(0, -1)
+    } else {
+      setLogEntries(prev => prev.slice(0, -1))
     }
+    setState(stateBeforeAction)
+    setStateBeforeAction(null)
   }
 
   const canPlaySelectedCard =
@@ -446,25 +450,27 @@ export function GameBoard({ state, setState, dispatch, playerIndex, serverLogEnt
         >
           Sell commodities
         </button>
-        {!dispatch && stateBeforeAction != null && (
-          <button
-            type="button"
-            className="secondary undo-button"
-            onClick={undo}
-          >
-            Undo
-          </button>
-        )}
-        {!isAuction && state.phase !== 'discardDown' && (
-          <button
-            type="button"
-            className="primary sidebar-commit"
-            onClick={endTurn}
-            disabled={!isMyTurn || !actionTakenThisTurn}
-          >
-            End turn
-          </button>
-        )}
+        <div className="sidebar-end-actions">
+          {!dispatch && stateBeforeAction != null && (
+            <button
+              type="button"
+              className="secondary undo-button"
+              onClick={undo}
+            >
+              Undo
+            </button>
+          )}
+          {!isAuction && state.phase !== 'discardDown' && (
+            <button
+              type="button"
+              className="primary sidebar-commit"
+              onClick={endTurn}
+              disabled={!isMyTurn || !actionTakenThisTurn}
+            >
+              End turn
+            </button>
+          )}
+        </div>
       </aside>
       <GameLog state={state} entries={serverLogEntries ?? logEntries} />
       <PlayerPanel state={state} />
@@ -664,8 +670,14 @@ export function GameBoard({ state, setState, dispatch, playerIndex, serverLogEnt
           font-size: 0.75rem;
           color: var(--text-muted);
         }
-        .sidebar-commit {
+        .sidebar-end-actions {
           margin-top: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          width: 100%;
+        }
+        .sidebar-commit {
           width: 100%;
           padding: 0.65rem;
         }

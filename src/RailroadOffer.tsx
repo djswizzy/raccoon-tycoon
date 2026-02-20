@@ -76,6 +76,7 @@ export function RailroadOffer({ railroads, onSelect, onConfirmStartAuction, disa
           justify-content: center;
           transition: transform 0.2s ease, border-color 0.15s, box-shadow 0.15s;
           box-sizing: border-box;
+          background: #f5f0e6;
         }
         .railroad-card:not(.selected):hover:not(:disabled):not(.empty) {
           transform: translateY(-8px);

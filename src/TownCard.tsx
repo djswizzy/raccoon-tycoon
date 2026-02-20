@@ -34,7 +34,7 @@ export function TownCard({ town, player, onBuySpecific, onBuyAny, selectedBuySpe
     .join(', ')
 
   return (
-    <div className="town-card card">
+    <div className={`town-card card${actionsDisabled ? ' town-card--disabled' : ''}`}>
       <div className="town-name">{town.name}</div>
       <div className="town-vp">{town.vp} VP</div>
       <div className="town-cost">
@@ -67,8 +67,11 @@ export function TownCard({ town, player, onBuySpecific, onBuyAny, selectedBuySpe
           box-sizing: border-box;
           display: flex;
           flex-direction: column;
+          align-items: center;
           gap: 0.25rem;
           transition: transform 0.2s ease, border-color 0.15s, box-shadow 0.15s;
+          background: #f5f0e6;
+          text-align: center;
         }
         .town-card:hover {
           transform: translateY(-8px);
@@ -79,6 +82,7 @@ export function TownCard({ town, player, onBuySpecific, onBuyAny, selectedBuySpe
           font-weight: 600;
           font-size: 0.8rem;
           line-height: 1.2;
+          color: #000;
         }
         .town-vp {
           color: var(--accent);
@@ -88,6 +92,7 @@ export function TownCard({ town, player, onBuySpecific, onBuyAny, selectedBuySpe
           display: flex;
           flex-wrap: wrap;
           gap: 0.25rem;
+          justify-content: center;
         }
         .town-cost .small {
           padding: 0.25rem 0.4rem;
@@ -96,6 +101,14 @@ export function TownCard({ town, player, onBuySpecific, onBuyAny, selectedBuySpe
         .town-cost .small.selected {
           border-color: var(--accent);
           box-shadow: 0 0 0 2px var(--accent-dim);
+        }
+        .town-card--disabled {
+          opacity: 0.55;
+          pointer-events: none;
+          filter: grayscale(0.4);
+        }
+        .town-card--disabled:hover {
+          transform: none;
         }
       `}</style>
     </div>
