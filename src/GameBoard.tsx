@@ -636,7 +636,7 @@ export function GameBoard({ state, setState, dispatch, playerIndex, serverLogEnt
             <button
               type="button"
               className="secondary undo-button"
-              onClick={dispatch ? () => dispatch({ type: 'undo' } as GameAction) : undo}
+              onClick={dispatch ? () => dispatch({ type: 'undo' }) : undo}
             >
               Undo
             </button>

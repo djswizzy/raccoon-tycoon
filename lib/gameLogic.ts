@@ -654,6 +654,7 @@ export type GameAction =
   | { type: 'placeBid'; amount: number }
   | { type: 'passAuction' }
   | { type: 'endTurn' }
+  | { type: 'undo' }
 
 export function applyGameAction(state: GameState, action: GameAction): GameState {
   switch (action.type) {
