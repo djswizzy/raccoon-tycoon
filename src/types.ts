@@ -46,6 +46,26 @@ export interface BuildingTile {
   bpUpgradeFromId?: string;
   /** +N of any commodity when producing (player chooses). */
   anyCommodityBonus?: number;
+  /** Trading firm: owner gets $1 per unit when any player sells these commodities. */
+  tradingFirmCommodities?: Commodity[];
+  /** Owner gets this many $ from bank when an auction is held. */
+  auctionCommission?: number;
+  /** Reduce town cost (any or each specific) by this many when buying a town. */
+  townCostReduce?: number;
+  /** End game: +this × (towns owned). */
+  vpPerTown?: number;
+  /** End game: +this × (railroads owned). */
+  vpPerRailroad?: number;
+  /** End game: +this × floor(money/20). */
+  vpPer20Money?: number;
+  /** End game: +this × (buildings owned), in addition to base 1 VP per building. */
+  vpPerBuilding?: number;
+  /** May perform two Sell actions in one turn. */
+  extraSellAction?: boolean;
+  /** May perform two Purchase Building actions in one turn. */
+  extraBuildingPurchase?: boolean;
+  /** When selling, add this to price per unit (capped at board max). */
+  sellPriceBonus?: number;
 }
 
 export interface Player {
@@ -91,4 +111,8 @@ export interface GameState {
   pendingDrawCount?: number;
   /** Set when an auction just resolved (for logging); should be cleared after logging. */
   lastAuctionResult?: { railroadName: string; winnerIndex: number; amount: number };
+  /** Number of building purchases this turn (for Construction Company). */
+  buildingPurchasesThisTurn?: number;
+  /** Number of sell actions this turn (for Freight Company). */
+  sellActionsThisTurn?: number;
 }

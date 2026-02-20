@@ -251,10 +251,30 @@ export function actionSell(state: GameState, commodity: Commodity, quantity: num
   if (sell <= 0 || state.phase !== 'playing') return state;
 
   p.commodities[commodity] = have - sell;
-  const price = s.market[commodity];
+  let price = s.market[commodity];
+  const exportBuilding = p.buildings.find(b => b.sellPriceBonus != null);
+  if (exportBuilding?.sellPriceBonus != null) {
+    price = Math.min(COMMODITY_PRICE_MAX[commodity], price + exportBuilding.sellPriceBonus);
+  }
   p.money += price * sell;
-  s.market[commodity] = Math.max(COMMODITY_PRICE_MIN[commodity], price - sell);
+  s.market[commodity] = Math.max(COMMODITY_PRICE_MIN[commodity], s.market[commodity] - sell);
 
+  // Trading firms: other players with matching firm get $1 per unit sold
+  for (let i = 0; i < s.players.length; i++) {
+    if (i === s.currentPlayerIndex) continue;
+    const other = s.players[i];
+    for (const b of other.buildings) {
+      if (b.tradingFirmCommodities?.includes(commodity)) {
+        other.money += sell;
+        break;
+      }
+    }
+  }
+
+  const sellCount = (s.sellActionsThisTurn ?? 0) + 1;
+  s.sellActionsThisTurn = sellCount;
+  const hasFreight = p.buildings.some(b => b.extraSellAction === true);
+  s.actionTakenThisTurn = !(hasFreight && sellCount < 2);
   return s;
 }
 
@@ -266,6 +286,12 @@ export function startAuction(state: GameState, railroadIndex: number): GameState
   if (state.players[starter].money < card.minBid) return state;
 
   const s = { ...state, players: state.players.map(x => ({ ...x })) };
+  for (const p of s.players) {
+    const auctionBuilding = p.buildings.find(b => b.auctionCommission != null);
+    if (auctionBuilding?.auctionCommission != null) {
+      p.money += auctionBuilding.auctionCommission;
+    }
+  }
   s.phase = 'auction';
   s.auctionRailroad = card;
   s.auctionStarterIndex = starter;
@@ -346,7 +372,8 @@ export function actionBuyBuilding(state: GameState, buildingIndex: number): Game
   p.buildings = [...p.buildings, tile];
   if (tile.bpTag && !p.activeBpBuildingId) p.activeBpBuildingId = tile.id;
   s.buildingOffer = s.buildingOffer.filter((_, i) => i !== buildingIndex);
-  s.actionTakenThisTurn = true;
+  s.buildingPurchasesThisTurn = (s.buildingPurchasesThisTurn ?? 0) + 1;
+  s.actionTakenThisTurn = true; // turn can always end; Construction Company allows optional second purchase
   return s;
 }
 
@@ -369,22 +396,34 @@ export function actionUpgradeBBuilding(state: GameState, buildingId: string): Ga
   return s;
 }
 
+function getTownCostReduce(player: Player): number {
+  const buildings = getEffectiveBuildings(player);
+  const b = buildings.find(x => x.townCostReduce != null);
+  return b?.townCostReduce ?? 0;
+}
+
 export function actionBuyTown(state: GameState, useSpecific: boolean): GameState {
   if (state.phase !== 'playing' || !state.currentTown) return state;
   const town = state.currentTown;
   const s = { ...state, players: state.players.map(x => ({ ...x })) };
   const p = s.players[s.currentPlayerIndex];
+  const reduce = getTownCostReduce(p);
 
   if (useSpecific) {
-    for (const [c, n] of Object.entries(town.costSpecific ?? {})) {
-      if ((p.commodities[c as Commodity] ?? 0) < n) return state;
+    const costSpecific = { ...town.costSpecific } as Partial<Record<Commodity, number>>;
+    for (const c of COMMODITIES) {
+      const n = (costSpecific[c] ?? 0) - reduce;
+      costSpecific[c] = Math.max(0, n);
+    }
+    for (const [c, n] of Object.entries(costSpecific)) {
+      if (n > 0 && (p.commodities[c as Commodity] ?? 0) < n) return state;
     }
     for (const c of COMMODITIES) {
-      const pay = town.costSpecific?.[c] ?? 0;
+      const pay = costSpecific[c] ?? 0;
       if (pay > 0) p.commodities[c] = (p.commodities[c] ?? 0) - pay;
     }
   } else {
-    let need = town.costAny;
+    let need = Math.max(0, town.costAny - reduce);
     for (const c of COMMODITIES) {
       while (need > 0 && (p.commodities[c] ?? 0) > 0) {
         p.commodities[c] = (p.commodities[c] ?? 0) - 1;
@@ -427,6 +466,8 @@ export function actionEndTurn(state: GameState): GameState {
 
   s.currentPlayerIndex = (s.currentPlayerIndex + 1) % s.numPlayers;
   s.actionTakenThisTurn = false;
+  s.buildingPurchasesThisTurn = 0;
+  s.sellActionsThisTurn = 0;
   return s;
 }
 
@@ -451,12 +492,18 @@ function railroadVp(railroads: { typeId: string; vpSchedule: number[] }[]): numb
   return total;
 }
 
-/** Current VP for one player: towns + railroads (by type) + 2 per town–railroad pair + 1 per building. */
+/** Current VP for one player: towns + railroads (by type) + 2 per town–railroad pair + 1 per building, plus building bonuses. */
 export function getPlayerVp(player: Player): number {
   let vp = player.towns.reduce((s, t) => s + t.vp, 0) + railroadVp(player.railroads);
   const pairs = Math.min(player.towns.length, player.railroads.length);
   vp += pairs * 2;
-  vp += player.buildings.length; // each building = 1 VP
+  vp += player.buildings.length; // base 1 VP per building
+  for (const b of player.buildings) {
+    if (b.vpPerTown != null) vp += b.vpPerTown * player.towns.length;
+    if (b.vpPerRailroad != null) vp += b.vpPerRailroad * player.railroads.length;
+    if (b.vpPer20Money != null) vp += b.vpPer20Money * Math.floor(player.money / 20);
+    if (b.vpPerBuilding != null) vp += b.vpPerBuilding * player.buildings.length;
+  }
   return vp;
 }
 

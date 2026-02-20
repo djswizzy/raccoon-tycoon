@@ -384,7 +384,7 @@ export function GameBoard({ state, setState, dispatch, playerIndex, serverLogEnt
                   onConfirmBuy={confirmBuyBuilding}
                   currentPlayerMoney={current.money}
                   selectedBuildingIndex={pendingAction?.type === 'buyBuilding' ? pendingAction.buildingIndex : null}
-                  selectionDisabled={!isMyTurn || actionTakenThisTurn}
+                  selectionDisabled={!isMyTurn || (actionTakenThisTurn && !(me.buildings.some(b => b.extraBuildingPurchase) && (state.buildingPurchasesThisTurn ?? 0) === 1))}
                   onOpenBuildingInfo={setInfoBuilding}
                 />
               </section>

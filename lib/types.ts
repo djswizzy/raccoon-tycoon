@@ -40,6 +40,16 @@ export interface BuildingTile {
   bpUpgradeToId?: string;
   bpUpgradeFromId?: string;
   anyCommodityBonus?: number;
+  tradingFirmCommodities?: Commodity[];
+  auctionCommission?: number;
+  townCostReduce?: number;
+  vpPerTown?: number;
+  vpPerRailroad?: number;
+  vpPer20Money?: number;
+  vpPerBuilding?: number;
+  extraSellAction?: boolean;
+  extraBuildingPurchase?: boolean;
+  sellPriceBonus?: number;
 }
 
 export interface Player {
@@ -84,4 +94,6 @@ export interface GameState {
   pendingDrawCount?: number;
   /** Set when an auction just resolved (for logging); should be cleared after logging. */
   lastAuctionResult?: { railroadName: string; winnerIndex: number; amount: number };
+  buildingPurchasesThisTurn?: number;
+  sellActionsThisTurn?: number;
 }
