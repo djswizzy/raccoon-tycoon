@@ -84,7 +84,11 @@ export function OnlineGameRoom({
           { cache: 'no-store', headers: { ...API_HEADERS, Pragma: 'no-cache', 'Cache-Control': 'no-cache' } }
         )
         if (!res.ok) {
-          if (mounted) setPollError(res.status === 403 ? 'Not in room (403)' : `Sync failed: ${res.status}`)
+          if (mounted) {
+            if (res.status === 404) setPollError('Room not found — server may have restarted. Leave and rejoin.')
+            else if (res.status === 403) setPollError('Not in room (403)')
+            else setPollError(`Sync failed: ${res.status}`)
+          }
           return
         }
         const data = await safeJson<{ status?: string; gameState?: GameState; gameLog?: LogEntry[] }>(res)
@@ -97,7 +101,11 @@ export function OnlineGameRoom({
           setServerLogEntries(data.gameLog)
         }
       } catch (e) {
-        if (mounted) setPollError((e as Error).message.slice(0, 50))
+        const msg = (e as Error).message || String(e)
+        const friendly = msg.includes('fetch') || msg.includes('NetworkError')
+          ? 'Connection problem — retrying…'
+          : msg.slice(0, 40)
+        if (mounted) setPollError(friendly)
       }
     }
 

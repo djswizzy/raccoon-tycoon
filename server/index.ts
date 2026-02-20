@@ -7,6 +7,7 @@ import {
   initGame,
   applyGameAction,
   formatActionMessage,
+  cloneGameState,
   type GameAction,
 } from '../lib/gameLogic'
 
@@ -41,6 +42,11 @@ interface Room {
   players: RoomPlayer[]
   gameState: GameState | null
   gameLog: LogEntry[]
+  /** Log entries for the current turn; flushed to gameLog when the player ends turn (auctions are logged immediately). */
+  pendingLogEntries: LogEntry[]
+  previousState: GameState | null
+  previousGameLog: LogEntry[]
+  previousPendingLogEntries: LogEntry[]
   status: 'waiting' | 'playing'
 }
 
@@ -48,19 +54,38 @@ const rooms = new Map<string, Room>()
 
 function getOrCreateRoom(roomCode: string): Room {
   if (!rooms.has(roomCode)) {
-    rooms.set(roomCode, { players: [], gameState: null, gameLog: [], status: 'waiting' })
+    rooms.set(roomCode, {
+      players: [],
+      gameState: null,
+      gameLog: [],
+      pendingLogEntries: [],
+      previousState: null,
+      previousGameLog: [],
+      previousPendingLogEntries: [],
+      status: 'waiting',
+    })
   }
   return rooms.get(roomCode)!
 }
 
-function pushLogEntry(room: Room, playerIndex: number, type: string, payload: Record<string, unknown>, stateBefore: GameState, stateAfter: GameState) {
+function makeLogEntry(room: Room, playerIndex: number, type: string, payload: Record<string, unknown>, stateBefore: GameState, stateAfter: GameState): LogEntry {
   const message = formatActionMessage({ type, ...payload }, stateAfter, stateBefore)
-  room.gameLog.push({
+  return {
     id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     playerIndex,
     message,
     timestamp: Date.now(),
-  })
+  }
+}
+
+/** Push to gameLog (visible to all immediately). Use for auctions. */
+function pushLogEntry(room: Room, playerIndex: number, type: string, payload: Record<string, unknown>, stateBefore: GameState, stateAfter: GameState) {
+  room.gameLog.push(makeLogEntry(room, playerIndex, type, payload, stateBefore, stateAfter))
+}
+
+/** Push to pendingLogEntries (flushed to gameLog when player ends turn). Use for normal turn actions. */
+function pushPendingLogEntry(room: Room, playerIndex: number, type: string, payload: Record<string, unknown>, stateBefore: GameState, stateAfter: GameState) {
+  room.pendingLogEntries.push(makeLogEntry(room, playerIndex, type, payload, stateBefore, stateAfter))
 }
 
 const app = express()
@@ -69,7 +94,7 @@ app.use((req, res, next) => {
   const origin = req.headers.origin
   const allow = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
   res.setHeader('Access-Control-Allow-Origin', allow)
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, ngrok-skip-browser-warning, User-Agent')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, ngrok-skip-browser-warning, User-Agent, Pragma, Cache-Control')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
   if (req.method === 'OPTIONS') {
     res.sendStatus(200)
@@ -172,6 +197,7 @@ app.post('/api/room/:roomCode/start', (req, res) => {
   const names = [...room.players].sort((a, b) => a.index - b.index).map((p) => p.name)
   room.gameState = initGame(room.players.length, names)
   room.gameLog = []
+  room.pendingLogEntries = []
   room.status = 'playing'
   res.json(room.gameState)
 })
@@ -203,18 +229,39 @@ app.post('/api/room/:roomCode/action', (req, res) => {
   }
   try {
     const action: GameAction = { type, ...payload } as GameAction
+    if (type === 'undo') {
+      if (!room.previousState) {
+        res.status(400).json({ error: 'Nothing to undo' })
+        return
+      }
+      room.gameState = room.previousState
+      room.gameLog = [...room.previousGameLog]
+      room.pendingLogEntries = [...room.previousPendingLogEntries]
+      room.previousState = null
+      room.previousGameLog = []
+      room.previousPendingLogEntries = []
+      res.json({ gameState: room.gameState, gameLog: room.gameLog })
+      return
+    }
+    room.previousState = cloneGameState(room.gameState)
+    room.previousGameLog = [...room.gameLog]
+    room.previousPendingLogEntries = [...room.pendingLogEntries]
     let nextState = room.gameState
     if (applyFirst && applyFirst.type) {
       const firstAction: GameAction = { type: applyFirst.type, ...applyFirst.payload } as GameAction
       nextState = applyGameAction(nextState, firstAction)
       if (firstAction.type !== 'endTurn' && firstAction.type !== 'placeBid' && firstAction.type !== 'passAuction') {
-        pushLogEntry(room, player.index, firstAction.type, applyFirst.payload || {}, room.gameState, nextState)
+        pushPendingLogEntry(room, player.index, firstAction.type, applyFirst.payload || {}, room.gameState, nextState)
       }
+    }
+    if (type === 'endTurn') {
+      room.gameLog.push(...room.pendingLogEntries)
+      room.pendingLogEntries = []
     }
     const stateBeforeMain = nextState
     nextState = applyGameAction(nextState, action)
     if (action.type !== 'endTurn' && action.type !== 'placeBid' && action.type !== 'passAuction') {
-      pushLogEntry(room, player.index, action.type, payload || {}, stateBeforeMain, nextState)
+      pushPendingLogEntry(room, player.index, action.type, payload || {}, stateBeforeMain, nextState)
     }
     const auctionResult = nextState.lastAuctionResult
     if (auctionResult) {
@@ -271,6 +318,7 @@ io.on('connection', (socket) => {
     const names = [...room.players].sort((a, b) => a.index - b.index).map((p) => p.name)
     room.gameState = initGame(room.players.length, names)
     room.gameLog = []
+    room.pendingLogEntries = []
     room.status = 'playing'
     io.to(roomCode).emit('game-state', room.gameState)
   })

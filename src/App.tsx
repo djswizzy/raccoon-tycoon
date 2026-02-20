@@ -1,33 +1,19 @@
 import { useState } from 'react'
 import type { GameState } from './types'
-import { initGame } from './gameLogic'
 import { LobbyScreen } from './LobbyScreen'
-import { SetupScreen } from './SetupScreen'
 import { RoomWaitingScreen } from './RoomWaitingScreen'
 import { OnlineGameRoom } from './OnlineGameRoom'
-import { GameBoard } from './GameBoard'
-import { GameOver } from './GameOver'
 
 const API_BASE = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001')
 const showApiDebug = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === '1'
 
 type AppScreen =
   | { screen: 'lobby' }
-  | { screen: 'setup' }
-  | { screen: 'local'; game: GameState }
   | { screen: 'room'; roomCode: string; playerId: string; playerIndex: number; isHost: boolean }
   | { screen: 'online'; roomCode: string; playerId: string; playerIndex: number; game: GameState }
 
 export default function App() {
   const [appScreen, setAppScreen] = useState<AppScreen>({ screen: 'lobby' })
-
-  function handlePlayLocal() {
-    setAppScreen({ screen: 'setup' })
-  }
-
-  function handleSetupStart(numPlayers: number, names: string[]) {
-    setAppScreen({ screen: 'local', game: initGame(numPlayers, names) })
-  }
 
   function handleCreateRoom(roomCode: string, playerId: string, playerIndex: number) {
     setAppScreen({ screen: 'room', roomCode, playerId, playerIndex, isHost: true })
@@ -62,23 +48,11 @@ export default function App() {
       <>
         {debugBanner}
         <LobbyScreen
-          onPlayLocal={handlePlayLocal}
           onCreateRoom={handleCreateRoom}
           onJoinRoom={handleJoinRoom}
         />
       </>
     )
-  }
-
-  if (appScreen.screen === 'setup') {
-    return (<>{debugBanner}<SetupScreen onStart={handleSetupStart} /></>)
-  }
-
-  if (appScreen.screen === 'local') {
-    if (appScreen.game.phase === 'gameover') {
-      return (<>{debugBanner}<GameOver state={appScreen.game} onReset={() => setAppScreen({ screen: 'lobby' })} /></>)
-    }
-    return (<>{debugBanner}<GameBoard state={appScreen.game} setState={(g) => setAppScreen({ ...appScreen, game: g })} /></>)
   }
 
   if (appScreen.screen === 'room') {

@@ -4,12 +4,11 @@ import { API_BASE, API_HEADERS, safeJson, withNgrokRetry } from './api'
 type Mode = 'choice' | 'create' | 'join'
 
 type Props = {
-  onPlayLocal: () => void
   onCreateRoom: (roomCode: string, playerId: string, playerIndex: number) => void
   onJoinRoom: (roomCode: string, playerId: string, playerIndex: number) => void
 }
 
-export function LobbyScreen({ onPlayLocal, onCreateRoom, onJoinRoom }: Props) {
+export function LobbyScreen({ onCreateRoom, onJoinRoom }: Props) {
   const [mode, setMode] = useState<Mode>('choice')
   useEffect(() => {
     const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
@@ -96,14 +95,11 @@ export function LobbyScreen({ onPlayLocal, onCreateRoom, onJoinRoom }: Props) {
           <h1>Marsupial Monopoly</h1>
           <p className="tagline">Build railroads, towns & goods in Astoria</p>
           <div className="lobby-buttons">
-            <button type="button" className="primary large" onClick={onPlayLocal}>
-              Play locally
-            </button>
-            <button type="button" className="secondary large" onClick={() => setMode('create')}>
-              Create room (online)
+            <button type="button" className="primary large" onClick={() => setMode('create')}>
+              Create room
             </button>
             <button type="button" className="secondary large" onClick={() => setMode('join')}>
-              Join room (online)
+              Join room
             </button>
           </div>
         </div>

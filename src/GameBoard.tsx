@@ -632,11 +632,11 @@ export function GameBoard({ state, setState, dispatch, playerIndex, serverLogEnt
           Sell commodities
         </button>
         <div className="sidebar-end-actions">
-          {!dispatch && stateBeforeAction != null && (
+          {((!dispatch && stateBeforeAction != null) || (dispatch && isMyTurn && !isAuction && state.phase !== 'discardDown')) && (
             <button
               type="button"
               className="secondary undo-button"
-              onClick={undo}
+              onClick={dispatch ? () => dispatch({ type: 'undo' } as GameAction) : undo}
             >
               Undo
             </button>
