@@ -112,7 +112,6 @@ export function DevPanel({ state, setState, playerIndex }: Props) {
               <select
                 value={buildingId}
                 onChange={(e) => setBuildingId(e.target.value)}
-                placeholder="Building…"
               >
                 <option value="">— Building —</option>
                 {buildingTiles.map(t => (
