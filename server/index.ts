@@ -298,17 +298,26 @@ const io = new Server(httpServer, {
 
 io.on('connection', (socket) => {
   socket.on('join-room', ({ roomCode, playerId }: { roomCode: string; playerId: string }) => {
-    const room = getOrCreateRoom(roomCode)
+    const code = String(roomCode || '').toUpperCase().trim()
+    if (!code || code.length !== 6) {
+      socket.emit('error', { message: 'Invalid room code' })
+      return
+    }
+    const room = rooms.get(code)
+    if (!room) {
+      socket.emit('error', { message: 'Invalid room code' })
+      return
+    }
     const player = room.players.find((p) => p.id === playerId)
     if (!player) {
       socket.emit('error', { message: 'Player not found in room' })
       return
     }
-    socket.join(roomCode)
-    ;(socket as any).roomCode = roomCode
+    socket.join(code)
+    ;(socket as any).roomCode = code
     ;(socket as any).playerId = playerId
-    socket.emit('joined', { roomCode, playerIndex: player.index })
-    io.to(roomCode).emit('room-update', {
+    socket.emit('joined', { roomCode: code, playerIndex: player.index })
+    io.to(code).emit('room-update', {
       players: room.players.map((p) => ({ name: p.name, index: p.index })),
       status: room.status,
       gameState: room.gameState,
@@ -316,7 +325,16 @@ io.on('connection', (socket) => {
   })
 
   socket.on('start-game', ({ roomCode, playerId }: { roomCode: string; playerId: string }) => {
-    const room = getOrCreateRoom(roomCode)
+    const code = String(roomCode || '').toUpperCase().trim()
+    if (!code || code.length !== 6) {
+      socket.emit('error', { message: 'Invalid room code' })
+      return
+    }
+    const room = rooms.get(code)
+    if (!room) {
+      socket.emit('error', { message: 'Invalid room code' })
+      return
+    }
     if (room.status !== 'waiting') return
     const host = room.players.find((p) => p.id === playerId)
     if (!host || host.index !== 0) {
@@ -328,7 +346,7 @@ io.on('connection', (socket) => {
     room.gameLog = []
     room.pendingLogEntries = []
     room.status = 'playing'
-    io.to(roomCode).emit('game-state', room.gameState)
+    io.to(code).emit('game-state', room.gameState)
   })
 
   socket.on(
@@ -346,7 +364,16 @@ io.on('connection', (socket) => {
       payload: Record<string, unknown>
       applyFirst?: { type: string; payload: Record<string, unknown> }
     }) => {
-      const room = getOrCreateRoom(roomCode)
+      const code = String(roomCode || '').toUpperCase().trim()
+      if (!code || code.length !== 6) {
+        socket.emit('error', { message: 'Invalid room code' })
+        return
+      }
+      const room = rooms.get(code)
+      if (!room) {
+        socket.emit('error', { message: 'Invalid room code' })
+        return
+      }
       if (room.status !== 'playing' || !room.gameState) return
       const player = room.players.find((p) => p.id === playerId)
       if (!player) return
@@ -362,7 +389,7 @@ io.on('connection', (socket) => {
         }
         next = applyGameAction(next, action)
         room.gameState = next
-        io.to(roomCode).emit('game-state', next)
+        io.to(code).emit('game-state', next)
       } catch (e) {
         socket.emit('error', { message: (e as Error)?.message || 'Action failed' })
       }

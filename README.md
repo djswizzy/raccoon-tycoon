@@ -75,7 +75,7 @@ Point your frontend at the server (e.g. set `VITE_API_URL` to `https://your-serv
 - React 18 + TypeScript (Vite frontend)
 - Node.js + Express + Socket.IO game server in `server/index.ts`
   - REST API: `POST /api/room/create`, `POST /api/room/join`, `GET /api/room/:roomCode`, `POST /api/room/:roomCode/start`, `POST /api/room/:roomCode/action`
-  - Join now **only succeeds** if the room already exists; joining a non-existent room returns `404 Room not found`
+  - Join now **only succeeds** if the room already exists; joining a non-existent room returns `Invalid room code`
   - CORS origins are controlled via the `ALLOWED_ORIGINS` environment variable
 - Docker support for running the game server (and optional ngrok tunnel) on a Linux host
 
