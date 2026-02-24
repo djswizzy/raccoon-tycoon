@@ -59,6 +59,11 @@ export function LobbyScreen({ onCreateRoom, onJoinRoom }: Props) {
   async function handleJoin(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    const normalizedCode = roomCode.toUpperCase().trim()
+    if (normalizedCode.length !== 6) {
+      setError('Invalid room code')
+      return
+    }
     setLoading(true)
     try {
       await withNgrokRetry(async () => {
@@ -66,12 +71,14 @@ export function LobbyScreen({ onCreateRoom, onJoinRoom }: Props) {
         const res = await fetch(url, {
           method: 'POST',
           headers: API_HEADERS,
-          body: JSON.stringify({ roomCode: roomCode.toUpperCase().trim(), playerName: joinName || 'Player' }),
+          body: JSON.stringify({ roomCode: normalizedCode, playerName: joinName || 'Player' }),
         })
         if (!res.ok) {
           const data = await safeJson<{ error?: string }>(res).catch(() => ({}))
           const errMsg = typeof data === 'object' && data !== null && 'error' in data ? data.error : undefined
-          throw new Error(errMsg || `Server error: ${res.status} ${res.statusText}`)
+          const shouldShowInvalidCode =
+            res.status === 404 || (typeof errMsg === 'string' && errMsg.toLowerCase().includes('room not found'))
+          throw new Error(shouldShowInvalidCode ? 'Invalid room code' : (errMsg || `Server error: ${res.status} ${res.statusText}`))
         }
         const data = await safeJson<{ roomCode: string; playerId: string; playerIndex: number }>(res)
         onJoinRoom(data.roomCode, data.playerId, data.playerIndex)

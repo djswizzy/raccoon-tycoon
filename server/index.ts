@@ -134,7 +134,7 @@ app.post('/api/room/join', (req, res) => {
   }
   const room = rooms.get(code)
   if (!room) {
-    res.status(404).json({ error: 'Room not found. Check the code or ask the host to create a room first.' })
+    res.status(404).json({ error: 'Invalid room code' })
     return
   }
   if (room.status === 'playing') {

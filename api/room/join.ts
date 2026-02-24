@@ -26,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const row = getGame(code)
   if (!row) {
-    return res.status(404).json({ error: 'Room not found' })
+    return res.status(404).json({ error: 'Invalid room code' })
   }
 
   const roomData = row.state as RoomData
